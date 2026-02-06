@@ -1,0 +1,171 @@
+{
+  "mes": 2,
+  "año": 2026,
+  "ultima_actualizacion": "2026-02-04 15:30:00",
+  "totales": {
+    "tecnicos_activos": 110,
+    "actividades": 1418,
+    "valor_bruto": 315032066,
+    "descuento_total": 94509620,
+    "valor_neto": 220522446,
+    "porcentaje_descuento_promedio": 30.0
+  },
+  "top10": [
+    {
+      "posicion": 1,
+      "nombre": "GONZALEZ ESTUPIÑAN YEISON WALTER",
+      "zona": "SANTANDERES",
+      "valor_bruto": 8343000,
+      "descuento": 2502900,
+      "valor_neto": 5840100,
+      "actividades": 32,
+      "promedio": 182503
+    },
+    {
+      "posicion": 2,
+      "nombre": "PEREZ PEREZ JOSE LUIS",
+      "zona": "SANTANDERES",
+      "valor_bruto": 6457000,
+      "descuento": 1937100,
+      "valor_neto": 4519900,
+      "actividades": 28,
+      "promedio": 161425
+    },
+    {
+      "posicion": 3,
+      "nombre": "RODRIGUEZ MARTINEZ CARLOS ANDRES",
+      "zona": "ANTIOQUIA",
+      "valor_bruto": 5892000,
+      "descuento": 1767600,
+      "valor_neto": 4124400,
+      "actividades": 25,
+      "promedio": 164976
+    },
+    {
+      "posicion": 4,
+      "nombre": "GOMEZ GONZALEZ JUAN CARLOS",
+      "zona": "BOGOTA",
+      "valor_bruto": 5234000,
+      "descuento": 1570200,
+      "valor_neto": 3663800,
+      "actividades": 23,
+      "promedio": 159296
+    },
+    {
+      "posicion": 5,
+      "nombre": "MARTINEZ LOPEZ FERNANDO",
+      "zona": "VALLE",
+      "valor_bruto": 4987000,
+      "descuento": 1496100,
+      "valor_neto": 3490900,
+      "actividades": 22,
+      "promedio": 158677
+    },
+    {
+      "posicion": 6,
+      "nombre": "LOPEZ SANCHEZ DIEGO ALBERTO",
+      "zona": "ANTIOQUIA",
+      "valor_bruto": 4756000,
+      "descuento": 1426800,
+      "valor_neto": 3329200,
+      "actividades": 21,
+      "promedio": 158533
+    },
+    {
+      "posicion": 7,
+      "nombre": "SANCHEZ RODRIGUEZ MIGUEL ANGEL",
+      "zona": "SANTANDERES",
+      "valor_bruto": 4543000,
+      "descuento": 1362900,
+      "valor_neto": 3180100,
+      "actividades": 20,
+      "promedio": 159005
+    },
+    {
+      "posicion": 8,
+      "nombre": "RAMIREZ TORRES LUIS EDUARDO",
+      "zona": "BOGOTA",
+      "valor_bruto": 4321000,
+      "descuento": 1296300,
+      "valor_neto": 3024700,
+      "actividades": 19,
+      "promedio": 159195
+    },
+    {
+      "posicion": 9,
+      "nombre": "TORRES GARCIA ANDRES FELIPE",
+      "zona": "VALLE",
+      "valor_bruto": 4187000,
+      "descuento": 1256100,
+      "valor_neto": 2930900,
+      "actividades": 18,
+      "promedio": 162828
+    },
+    {
+      "posicion": 10,
+      "nombre": "GARCIA HERNANDEZ OSCAR JAVIER",
+      "zona": "ANTIOQUIA",
+      "valor_bruto": 3998000,
+      "descuento": 1199400,
+      "valor_neto": 2798600,
+      "actividades": 17,
+      "promedio": 164624
+    }
+  ],
+  "stats_por_zona": {
+    "SANTANDERES": {
+      "tecnicos": 18,
+      "actividades": 287,
+      "valor_bruto": 52340000,
+      "descuento": 15702000,
+      "valor_neto": 36638000
+    },
+    "ANTIOQUIA": {
+      "tecnicos": 22,
+      "actividades": 354,
+      "valor_bruto": 64230000,
+      "descuento": 19269000,
+      "valor_neto": 44961000
+    },
+    "BOGOTA": {
+      "tecnicos": 15,
+      "actividades": 245,
+      "valor_bruto": 45670000,
+      "descuento": 13701000,
+      "valor_neto": 31969000
+    },
+    "VALLE": {
+      "tecnicos": 19,
+      "actividades": 298,
+      "valor_bruto": 53890000,
+      "descuento": 16167000,
+      "valor_neto": 37723000
+    }
+  },
+  "stats_por_tipologia": {
+    "TIPO I": {
+      "count": 234,
+      "valor_bruto": 13128600,
+      "descuento": 2625720,
+      "valor_neto": 10502880
+    },
+    "TIPO II": {
+      "count": 687,
+      "valor_bruto": 79623300,
+      "descuento": 23886990,
+      "valor_neto": 55736310
+    },
+    "TIPO III": {
+      "count": 342,
+      "valor_bruto": 75445200,
+      "descuento": 37722600,
+      "valor_neto": 37722600
+    },
+    "TIPO IV": {
+      "count": 155,
+      "valor_bruto": 59473500,
+      "descuento": 29736750,
+      "valor_neto": 29736750
+    }
+  }
+}

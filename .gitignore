@@ -1,0 +1,17 @@
+# JSON sin comprimir
+liquidaciones_db.json
+liquidaciones.json
+
+# Backups
+*.bak
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.env
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store
