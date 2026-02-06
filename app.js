@@ -7,7 +7,7 @@ class LiquidacionesApp {
         this.technicians = [];
         this.currentTechnician = null;
         this.selectedMonth = null;
-        this.selectedDepartment = 'all';
+        this.selectedRegion = 'all';
         this.META_MENSUAL = 4500000; // Meta mensual de recaudo
         this.init();
     }
@@ -18,7 +18,7 @@ class LiquidacionesApp {
             await this.loadData();
             this.hideLoading();
             this.setupEventListeners();
-            this.renderDepartmentFilter();
+            this.renderRegionFilter();
             this.renderMonthFilter();
             this.renderRanking();
         } catch (error) {
@@ -295,6 +295,12 @@ class LiquidacionesApp {
                     <div class="summary-value">${this.formatCurrency(netoMesActual)}</div>
                 </div>
                 <div class="summary-stat" style="grid-column: 1 / -1;">
+                    <div class="summary-label">META MENSUAL</div>
+                    <div class="summary-value" style="color: var(--accent); font-size: 1.5rem;">
+                        ${this.formatCurrency(this.META_MENSUAL)}
+                    </div>
+                </div>
+                <div class="summary-stat" style="grid-column: 1 / -1;">
                     <div class="summary-label">% CUMPLIMIENTO</div>
                     <div class="summary-value" style="color: ${percentageColorMesActual}; font-size: 2rem;">
                         ${percentageMesActual}%
@@ -385,6 +391,7 @@ class LiquidacionesApp {
                                                         <div class="task-body">
                                                             <div class="task-info">
                                                                 <div class="task-location">📍 ${tarea.nombre_punto || tarea.ciudad || 'Sin ubicación'}</div>
+                                                                <div class="task-dept">🗺️ Zona: ${tarea.bodega || 'Sin zona'}</div>
                                                                 <div class="task-dept">🏢 ${tarea.departamento || 'Sin departamento'} ${tarea.ciudad ? '- ' + tarea.ciudad : ''}</div>
                                                                 ${tarea.tipificacion ? `<div class="task-tipif">🔖 ${tarea.tipificacion}</div>` : ''}
                                                                 <div class="task-date">📅 ${this.formatTaskDate(tarea.fecha_cierre || tarea.fecha_resolucion)}</div>
@@ -506,13 +513,13 @@ class LiquidacionesApp {
 
         let filteredTechs = this.technicians;
         
-        // Filtrar por departamento si no es "all"
-        if (this.selectedDepartment && this.selectedDepartment !== 'all') {
+        // Filtrar por región si no es "all"
+        if (this.selectedRegion && this.selectedRegion !== 'all') {
             filteredTechs = this.technicians.filter(tech => {
                 const mesData = tech.meses.find(m => m.mes === this.selectedMonth);
                 if (!mesData || !mesData.tareas) return false;
                 
-                return mesData.tareas.some(t => t.departamento === this.selectedDepartment);
+                return mesData.tareas.some(t => (t.bodega || t.departamento) === this.selectedRegion);
             });
         }
 
@@ -550,24 +557,24 @@ class LiquidacionesApp {
         `).join('');
     }
 
-    changeDepartment(department) {
-        this.selectedDepartment = department;
+    changeRegion(region) {
+        this.selectedRegion = region;
         this.renderRanking();
     }
 
-    renderDepartmentFilter() {
+    renderRegionFilter() {
         const filterDiv = document.getElementById('regionFilter');
         if (!filterDiv) return;
 
-        const departments = this.getDepartments();
+        const regions = this.getRegions();
         
         filterDiv.innerHTML = `
             <div class="filter-group">
-                <label class="filter-label">🏢 Seleccionar Departamento</label>
-                <select class="filter-select" id="deptSelect" onchange="app.changeDepartment(this.value)">
-                    ${departments.map(dept => `
-                        <option value="${dept.value}" ${dept.isActive ? 'selected' : ''}>
-                            ${dept.label}
+                <label class="filter-label">🗺️ Filtrar por Zona</label>
+                <select class="filter-select" id="regionSelect" onchange="app.changeRegion(this.value)">
+                    ${regions.map(region => `
+                        <option value="${region.value}" ${region.isActive ? 'selected' : ''}>
+                            ${region.label}
                         </option>
                     `).join('')}
                 </select>
@@ -575,29 +582,47 @@ class LiquidacionesApp {
         `;
     }
 
-    getDepartments() {
-        const departmentsSet = new Set();
+    getRegions() {
+        const regionsSet = new Set();
         
         this.technicians.forEach(tech => {
             tech.meses.forEach(mes => {
                 if (mes.tareas) {
                     mes.tareas.forEach(tarea => {
-                        if (tarea.departamento) {
-                            departmentsSet.add(tarea.departamento);
+                        const region = tarea.bodega || tarea.departamento;
+                        if (region && region !== 'SIN ZONA') {
+                            regionsSet.add(region);
                         }
                     });
                 }
             });
         });
 
-        const departments = Array.from(departmentsSet).sort();
+        const regions = Array.from(regionsSet);
+        
+        // Filtrar solo las 6 zonas macro principales (ignorar zonas pequeñas)
+        const zonasMacro = [
+            'NOROCCIDENTE',
+            'SUROCCIDENTE Y EJE CAFETERO',
+            'CUNDINAMARCA',
+            'COSTA',
+            'SANTANDERES',
+            'REMOTAS'
+        ];
+        
+        const regionesFiltradas = regions.filter(r => zonasMacro.includes(r));
+        
+        // Ordenar según el orden de importancia de las zonas
+        regionesFiltradas.sort((a, b) => {
+            return zonasMacro.indexOf(a) - zonasMacro.indexOf(b);
+        });
         
         return [
-            { value: 'all', label: 'Todos los departamentos', isActive: !this.selectedDepartment || this.selectedDepartment === 'all' },
-            ...departments.map(d => ({
-                value: d,
-                label: d,
-                isActive: this.selectedDepartment === d
+            { value: 'all', label: 'Todas las zonas', isActive: !this.selectedRegion || this.selectedRegion === 'all' },
+            ...regionesFiltradas.map(r => ({
+                value: r,
+                label: r,
+                isActive: this.selectedRegion === r
             }))
         ];
     }
@@ -652,6 +677,7 @@ class LiquidacionesApp {
         try {
             const date = new Date(dateString);
             return date.toLocaleDateString('es-CO', {
+                year: 'numeric',
                 month: 'short',
                 day: 'numeric',
                 hour: '2-digit',
@@ -668,89 +694,84 @@ class LiquidacionesApp {
         return div.innerHTML;
     }
 
-    async downloadPDF() {
-        if (!this.currentTechnician) return;
-        
-        // Obtener el mes más reciente (mes actual)
+    downloadCurrentMonthPDF() {
+        if (!this.currentTechnician) {
+            alert('No hay técnico seleccionado');
+            return;
+        }
+
         const sortedMeses = this.currentTechnician.meses.sort((a, b) => new Date(b.mes) - new Date(a.mes));
         const mesActual = sortedMeses[0];
         
-        await this.generatePDF(this.currentTechnician, mesActual.mes);
+        if (!mesActual) {
+            alert('No hay datos del mes actual disponibles');
+            return;
+        }
+
+        this.downloadMonthPDF(mesActual.mes);
     }
 
-    async downloadCurrentMonthPDF() {
-        if (!this.currentTechnician) return;
-        
-        // Obtener el mes más reciente (mes actual)
-        const sortedMeses = this.currentTechnician.meses.sort((a, b) => new Date(b.mes) - new Date(a.mes));
-        const mesActual = sortedMeses[0];
-        
-        await this.generatePDF(this.currentTechnician, mesActual.mes);
-    }
+    downloadMonthPDF(targetMonth) {
+        const tech = this.currentTechnician;
+        if (!tech) {
+            alert('Error: No hay técnico seleccionado');
+            return;
+        }
 
-    async downloadMonthPDF(month) {
-        if (!this.currentTechnician) return;
-        
-        await this.generatePDF(this.currentTechnician, month);
-    }
-
-    async generatePDF(tech, targetMonth) {
-        if (!tech) return;
-
-        const btn = event?.target || document.getElementById('pdfDownloadBtn');
+        const btn = event.target.closest('button');
         if (!btn) return;
-        
+
         const originalHTML = btn.innerHTML;
-        
+        btn.innerHTML = '<span class="icon">⏳</span><span>Generando PDF...</span>';
+        btn.disabled = true;
+
         try {
-            // Deshabilitar botón y mostrar spinner
-            btn.disabled = true;
-            btn.innerHTML = '<span class="icon">⏳</span><span>Generando PDF...</span>';
-
-            // Encontrar el mes específico
             const mesData = tech.meses.find(m => m.mes === targetMonth);
-            if (!mesData) {
-                throw new Error('Mes no encontrado');
-            }
             
-            const netoMes = mesData.total_neto;
-            const tareasMes = mesData.cantidad_tareas;
-            const percentageMes = this.calculatePercentage(netoMes);
+            if (!mesData) {
+                alert('No hay datos para este mes');
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+                return;
+            }
 
-            // Nombre del mes para el título
-            const monthName = new Date(targetMonth + '-01').toLocaleDateString('es-CO', { 
-                month: 'long', 
-                year: 'numeric' 
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
             });
 
-            // Obtener fecha actual
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            
+            // Colores corporativos
+            const primaryColor = [99, 102, 241]; // Índigo
+            const textColor = [226, 232, 240]; // Gris claro
+            
+            const monthName = new Date(targetMonth + '-01').toLocaleDateString('es-CO', {
+                month: 'long',
+                year: 'numeric'
+            });
+
+            const tareasMes = mesData.cantidad_tareas || 0;
+            const netoMes = mesData.total_neto || 0;
+            const percentageMes = this.calculatePercentage(netoMes);
+            
             const fechaGeneracion = new Date().toLocaleDateString('es-CO', {
                 year: 'numeric',
                 month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
+                day: 'numeric'
             });
 
-            // Crear instancia de jsPDF
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF('p', 'mm', 'a4');
-            
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const pageHeight = doc.internal.pageSize.getHeight();
-            let yPos = 20;
-
-            // Configurar colores
-            const primaryColor = [0, 212, 255]; // Cyan
-            const textColor = [255, 255, 255]; // Blanco
-            const darkBg = [10, 14, 39]; // Fondo oscuro
+            let yPos = 0;
 
             // Fondo oscuro
-            doc.setFillColor(...darkBg);
+            doc.setFillColor(17, 24, 39);
             doc.rect(0, 0, pageWidth, pageHeight, 'F');
 
-            // Header con logo (simulado con texto)
-            doc.setFillColor(...primaryColor);
+            // Header con gradiente simulado
+            doc.setFillColor(26, 31, 58);
             doc.rect(0, 0, pageWidth, 40, 'F');
             doc.setTextColor(255, 255, 255);
             doc.setFontSize(24);

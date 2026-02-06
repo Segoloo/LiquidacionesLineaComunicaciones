@@ -101,7 +101,7 @@ class ExtractorLiquidacionesDB:
         try:
             cursor = self.connection.cursor(dictionary=True)
             
-            # Query con JOIN para obtener valores reales de facturacion_linea
+            # Query con JOIN para obtener valores reales de facturacion_linea + bodega/región
             query = """
                 SELECT 
                     dlt.tarea,
@@ -130,9 +130,13 @@ class ExtractorLiquidacionesDB:
                     fl.prod_tecnico_final,
                     fl.total_facturacion,
                     fl.valor_total_entidad,
-                    fl.valor_total_red
+                    fl.valor_total_red,
+                    COALESCE(dlt.zona_coordinador, 'SIN ZONA') AS bodega,
+                    sl.Partido_Departamento AS departamento_completo,
+                    sl.Región AS region_sitio
                 FROM data_linea_todos dlt
                 LEFT JOIN facturacion_linea fl ON dlt.formulario = fl.formulario
+                LEFT JOIN sitios_linea sl ON dlt.codigo_sitio = sl.Código
                 WHERE dlt.tecnico IS NOT NULL 
                 AND dlt.tecnico != ''
                 AND fl.prod_tecnico_final IS NOT NULL
@@ -304,6 +308,8 @@ class ExtractorLiquidacionesDB:
                 'fecha_cierre': fecha_cierre.strftime('%Y-%m-%d %H:%M:%S'),
                 'ciudad': tarea.get('ciudad', ''),
                 'departamento': tarea.get('departamento', ''),
+                'bodega': tarea.get('bodega', 'SIN ZONA'),  # zona_coordinador
+                'region': tarea.get('region_sitio', ''),  # Región del sitio (para referencia)
                 'nombre_punto': tarea.get('nombre_punto', ''),
                 'estado_ta': tarea.get('estado_ta', ''),
                 'estado_fo': tarea.get('estado_fo', ''),
