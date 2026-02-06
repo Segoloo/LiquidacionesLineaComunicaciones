@@ -477,24 +477,29 @@ class LiquidacionesApp {
             return;
         }
 
-        this.selectedMonth = months[0].value;
+        if (!this.selectedMonth) {
+            this.selectedMonth = months[0].value;
+        }
 
         filterDiv.innerHTML = `
             <div class="filter-group">
-                <label class="filter-label">📅 Seleccionar Mes</label>
-                <select class="filter-select" id="monthSelect" onchange="app.changeMonth(this.value)">
-                    ${months.map((month, index) => `
-                        <option value="${month.value}" ${index === 0 ? 'selected' : ''}>
+                <label class="filter-label">📅 Selecciona el Mes</label>
+                <div class="month-filter-container">
+                    ${months.map(month => `
+                        <button 
+                            class="month-btn ${month.value === this.selectedMonth ? 'active' : ''}" 
+                            onclick="app.changeMonth('${month.value}')">
                             ${month.label}
-                        </option>
+                        </button>
                     `).join('')}
-                </select>
+                </div>
             </div>
         `;
     }
 
     changeMonth(month) {
         this.selectedMonth = month;
+        this.renderMonthFilter();
         this.renderRanking();
     }
 
@@ -531,7 +536,8 @@ class LiquidacionesApp {
                 return {
                     nombre: tech.nombre,
                     total: mesData.total_neto,
-                    tareas: mesData.cantidad_tareas
+                    tareas: mesData.cantidad_tareas,
+                    percentage: this.calculatePercentage(mesData.total_neto)
                 };
             })
             .filter(t => t && t.total > 0)
@@ -543,22 +549,89 @@ class LiquidacionesApp {
             return;
         }
 
-        gridDiv.innerHTML = ranking.map((tech, index) => `
-            <div class="ranking-card" onclick="app.selectTechnician('${this.escapeHtml(tech.nombre)}')">
-                <div class="rank-badge rank-${index < 3 ? index + 1 : 'other'}">
-                    ${index + 1}
+        // Separar top 3 del resto
+        const top3 = ranking.slice(0, 3);
+        const rest = ranking.slice(3);
+
+        // Generar HTML del podio (orden: 2do, 1ro, 3ro)
+        let podiumHTML = '';
+        if (top3.length > 0) {
+            const podiumOrder = [
+                top3[1] || null, // 2do lugar (izquierda)
+                top3[0] || null, // 1er lugar (centro)
+                top3[2] || null  // 3er lugar (derecha)
+            ];
+
+            const classOrder = ['second', 'first', 'third'];
+            const rankOrder = [2, 1, 3];
+
+            podiumHTML = `
+                <div class="podium-container">
+                    ${podiumOrder.map((tech, idx) => {
+                        if (!tech) return '';
+                        const avatar = tech.nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                        const percentageColor = this.getPercentageColor(tech.percentage);
+                        
+                        return `
+                            <div class="podium-place ${classOrder[idx]}" onclick="app.selectTechnician('${this.escapeHtml(tech.nombre)}')">
+                                <div class="podium-medal">
+                                    <div class="podium-rank">${rankOrder[idx]}</div>
+                                    <div class="podium-avatar">${avatar}</div>
+                                </div>
+                                <div class="podium-pedestal">
+                                    <div class="podium-name" title="${this.escapeHtml(tech.nombre)}">${this.escapeHtml(tech.nombre)}</div>
+                                    <div class="podium-tasks">${tech.tareas} tareas</div>
+                                    <div class="podium-amount">${this.formatCurrency(tech.total)}</div>
+                                    <div class="podium-percentage" style="background-color: ${percentageColor}; color: white;">
+                                        ${tech.percentage}%
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
                 </div>
-                <div class="ranking-info">
-                    <div class="ranking-name">${this.escapeHtml(tech.nombre)}</div>
-                    <div class="ranking-tasks">${tech.tareas} tareas</div>
+            `;
+        }
+
+        // Generar HTML para los rankings del 4-10
+        let listHTML = '';
+        if (rest.length > 0) {
+            listHTML = `
+                <div class="ranking-separator">
+                    <div class="ranking-separator-text">Top 4 - 10</div>
                 </div>
-                <div class="ranking-amount">${this.formatCurrency(tech.total)}</div>
-            </div>
-        `).join('');
+                <div class="ranking-list">
+                    ${rest.map((tech, index) => {
+                        const position = index + 4; // Empieza en 4
+                        const avatar = tech.nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                        
+                        return `
+                            <div class="ranking-card" onclick="app.selectTechnician('${this.escapeHtml(tech.nombre)}')">
+                                <div class="ranking-position">${position}</div>
+                                <div class="ranking-info">
+                                    <div class="ranking-avatar">${avatar}</div>
+                                    <div class="ranking-details">
+                                        <div class="ranking-name" title="${this.escapeHtml(tech.nombre)}">${this.escapeHtml(tech.nombre)}</div>
+                                        <div class="ranking-tasks">${tech.tareas} tareas</div>
+                                    </div>
+                                </div>
+                                <div class="ranking-stats">
+                                    <div class="ranking-amount">${this.formatCurrency(tech.total)}</div>
+                                    <div class="ranking-label">${tech.percentage}% cumplimiento</div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        gridDiv.innerHTML = podiumHTML + listHTML;
     }
 
     changeRegion(region) {
         this.selectedRegion = region;
+        this.renderRegionFilter();
         this.renderRanking();
     }
 
@@ -570,14 +643,16 @@ class LiquidacionesApp {
         
         filterDiv.innerHTML = `
             <div class="filter-group">
-                <label class="filter-label">🗺️ Filtrar por Zona</label>
-                <select class="filter-select" id="regionSelect" onchange="app.changeRegion(this.value)">
+                <label class="filter-label">🗺️ Selecciona tu Zona</label>
+                <div class="zone-filter-container">
                     ${regions.map(region => `
-                        <option value="${region.value}" ${region.isActive ? 'selected' : ''}>
+                        <button 
+                            class="zone-btn ${region.isActive ? 'active' : ''}" 
+                            onclick="app.changeRegion('${region.value}')">
                             ${region.label}
-                        </option>
+                        </button>
                     `).join('')}
-                </select>
+                </div>
             </div>
         `;
     }
