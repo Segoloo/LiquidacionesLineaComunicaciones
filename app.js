@@ -9,7 +9,50 @@ class LiquidacionesApp {
         this.selectedMonth = null;
         this.selectedRegion = 'all';
         this.META_MENSUAL = 4500000; // Meta mensual de recaudo
+        
+        // Topes de comisión
+        this.COMMISSION_TIERS = [
+            { min: 0, max: 1000000, percentage: 0.15, name: 'Bronce', color: 'bronze' },
+            { min: 1000001, max: 2000000, percentage: 0.08, name: 'Plata', color: 'silver' },
+            { min: 2000001, max: 3000000, percentage: 0.05, name: 'Oro', color: 'gold' },
+            { min: 3000001, max: Infinity, percentage: 0.03, name: 'Platino', color: 'platinum' }
+        ];
+        
         this.init();
+    }
+
+    calculateCommission(totalRecaudado) {
+        // Si no alcanza la meta mínima, comisión es 0
+        if (totalRecaudado < this.META_MENSUAL) {
+            return {
+                commission: 0,
+                tier: { name: 'Ninguno', color: 'none', percentage: 0 },
+                excedente: 0,
+                metCumplida: false
+            };
+        }
+
+        const excedente = totalRecaudado - this.META_MENSUAL;
+        let commission = 0;
+        let currentTier = null;
+
+        // Calcular comisión por tramos
+        for (const tier of this.COMMISSION_TIERS) {
+            if (excedente >= tier.min) {
+                const montoEnTier = Math.min(excedente - tier.min, tier.max - tier.min);
+                if (montoEnTier > 0) {
+                    commission += montoEnTier * tier.percentage;
+                    currentTier = tier;
+                }
+            }
+        }
+
+        return {
+            commission: Math.round(commission),
+            tier: currentTier || this.COMMISSION_TIERS[0],
+            excedente: excedente,
+            metCumplida: true
+        };
     }
 
     async init() {
@@ -344,6 +387,8 @@ class LiquidacionesApp {
                 </div>
             </div>
 
+            ${this.renderCommissionSection(netoMesActual)}
+
             <div class="current-month-download">
                 <div class="current-month-download-title">Descargar Reporte Mes Actual</div>
                 <button class="pdf-download-btn" onclick="app.downloadCurrentMonthPDF()">
@@ -405,6 +450,8 @@ class LiquidacionesApp {
                                         </div>
                                     </div>
                                     
+                                    ${this.renderCommissionSection(mes.total_neto)}
+                                    
                                     ${mes.tareas && mes.tareas.length > 0 ? `
                                         <div class="tasks-section">
                                             <div class="tasks-title">Tareas Completadas (${mes.tareas.length})</div>
@@ -446,6 +493,101 @@ class LiquidacionesApp {
 
         modal.classList.add('active');
         document.body.style.overflow = 'hidden';
+    }
+
+    renderCommissionSection(totalRecaudado) {
+        const commissionData = this.calculateCommission(totalRecaudado);
+        const { commission, tier, excedente, metCumplida } = commissionData;
+
+        return `
+            <div class="commission-card">
+                <div class="commission-header">
+                    <div class="commission-title">
+                        <span class="commission-icon">💰</span>
+                        COMISIÓN A OBTENER
+                    </div>
+                    <span class="commission-tier-badge tier-${tier.color}">${tier.name}</span>
+                </div>
+
+                <div class="commission-amount-box">
+                    <div class="commission-label">Comisión Calculada</div>
+                    <div class="commission-value">${this.formatCurrency(commission)}</div>
+                    <div class="commission-subtitle">
+                        ${metCumplida ? 
+                            `Sobre el excedente de ${this.formatCurrency(excedente)}` : 
+                            `Meta mínima no alcanzada (${this.formatCurrency(this.META_MENSUAL - totalRecaudado)} faltantes)`
+                        }
+                    </div>
+                </div>
+
+                <div class="commission-details">
+                    <div class="commission-detail-row">
+                        <div class="commission-detail-label">
+                            <span>📊</span> Total Recaudado
+                        </div>
+                        <div class="commission-detail-value">${this.formatCurrency(totalRecaudado)}</div>
+                    </div>
+                    <div class="commission-detail-row">
+                        <div class="commission-detail-label">
+                            <span>🎯</span> Meta Mensual
+                        </div>
+                        <div class="commission-detail-value">${this.formatCurrency(this.META_MENSUAL)}</div>
+                    </div>
+                    <div class="commission-detail-row">
+                        <div class="commission-detail-label">
+                            <span>📈</span> Excedente sobre Meta
+                        </div>
+                        <div class="commission-detail-value" style="color: ${excedente > 0 ? 'var(--success)' : 'var(--danger)'}">
+                            ${this.formatCurrency(excedente)}
+                        </div>
+                    </div>
+                    ${metCumplida ? `
+                        <div class="commission-detail-row">
+                            <div class="commission-detail-label">
+                                <span>💎</span> Nivel Actual
+                            </div>
+                            <div class="commission-detail-value">
+                                ${tier.name} - ${(tier.percentage * 100).toFixed(0)}%
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+
+                <div class="minimum-badge ${metCumplida ? 'met' : ''}">
+                    <span>${metCumplida ? '✓' : '⚠️'}</span>
+                    ${metCumplida ? 
+                        'Meta mínima alcanzada - Comisión activa' : 
+                        `Requiere ${this.formatCurrency(this.META_MENSUAL)} para activar comisiones`
+                    }
+                </div>
+
+                <div class="commission-tiers-table">
+                    <div class="tier-header">📊 Tabla de Comisiones por Niveles</div>
+                    ${this.COMMISSION_TIERS.map((tierItem, index) => {
+                        const isActive = metCumplida && tier.name === tierItem.name;
+                        const rangeMin = this.formatCurrency(tierItem.min);
+                        const rangeMax = tierItem.max === Infinity ? '∞' : this.formatCurrency(tierItem.max);
+                        
+                        return `
+                            <div class="tier-row ${isActive ? 'active' : ''}">
+                                <div class="tier-cell">
+                                    <div class="tier-cell-label">Nivel</div>
+                                    <div class="tier-cell-value">${tierItem.name}</div>
+                                </div>
+                                <div class="tier-cell">
+                                    <div class="tier-cell-label">Rango (Excedente)</div>
+                                    <div class="tier-cell-value">${rangeMin} - ${rangeMax}</div>
+                                </div>
+                                <div class="tier-cell">
+                                    <div class="tier-cell-label">Comisión</div>
+                                    <div class="tier-cell-value tier-percentage">${(tierItem.percentage * 100).toFixed(0)}%</div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
     }
 
     closeModal() {
