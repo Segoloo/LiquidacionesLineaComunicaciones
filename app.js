@@ -186,16 +186,46 @@ class LiquidacionesApp {
         const suggestionsDiv = document.getElementById('suggestions');
         const queryLower = query.toLowerCase();
 
+        // Obtener el mes más reciente disponible en los datos
+        const availableMonths = this.getRecentMonths();
+        const currentMonthStr = availableMonths.length > 0 ? availableMonths[0].value : null;
+
+        if (!currentMonthStr) {
+            suggestionsDiv.innerHTML = `
+                <div class="suggestion-item">
+                    <div class="suggestion-info">
+                        <div class="suggestion-name">No hay datos disponibles</div>
+                        <div class="suggestion-stats">Intenta más tarde</div>
+                    </div>
+                </div>
+            `;
+            suggestionsDiv.classList.remove('hidden');
+            return;
+        }
+
+        console.log('Buscando mes más reciente:', currentMonthStr); // Debug
+
         const matches = this.technicians
             .filter(tech => tech.nombre.toLowerCase().includes(queryLower))
             .map(tech => {
-                // Obtener el mes más reciente
-                const sortedMeses = tech.meses.sort((a, b) => new Date(b.mes) - new Date(a.mes));
-                const mesActual = sortedMeses[0];
-                const netoMesActual = mesActual ? mesActual.total_neto : 0;
+                // Buscar el mes más reciente disponible
+                const mesData = tech.meses.find(m => m.mes === currentMonthStr);
+                
+                let tareasCount = 0;
+                let netoMesActual = 0;
+                
+                if (mesData) {
+                    netoMesActual = mesData.total_neto || 0;
+                    tareasCount = mesData.tareas ? mesData.tareas.length : 0;
+                    console.log(`${tech.nombre}: encontró mes ${currentMonthStr} con $${netoMesActual} y ${tareasCount} tareas`); // Debug
+                } else {
+                    console.log(`${tech.nombre}: NO encontró mes ${currentMonthStr}, mostrando $0`); // Debug
+                }
+                
                 return {
                     ...tech,
-                    netoMesActual
+                    netoMesActual,
+                    tareasCount
                 };
             })
             .sort((a, b) => b.netoMesActual - a.netoMesActual)
@@ -218,7 +248,7 @@ class LiquidacionesApp {
             <div class="suggestion-item" onclick="app.selectTechnician('${this.escapeHtml(tech.nombre)}')">
                 <div class="suggestion-info">
                     <div class="suggestion-name">${this.escapeHtml(tech.nombre)}</div>
-                    <div class="suggestion-stats">${tech.total_tareas} tareas completadas</div>
+                    <div class="suggestion-stats">${tech.tareasCount} tareas este mes</div>
                 </div>
                 <div class="suggestion-amount">${this.formatCurrency(tech.netoMesActual)}</div>
             </div>
