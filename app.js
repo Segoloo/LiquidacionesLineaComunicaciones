@@ -12,10 +12,10 @@ class LiquidacionesApp {
         
         // Topes de comisión
         this.COMMISSION_TIERS = [
-            { min: 0, max: 1000000, percentage: 0.15, name: 'Bronce', color: 'bronze' },
-            { min: 1000001, max: 2000000, percentage: 0.08, name: 'Plata', color: 'silver' },
-            { min: 2000001, max: 3000000, percentage: 0.05, name: 'Oro', color: 'gold' },
-            { min: 3000001, max: Infinity, percentage: 0.03, name: 'Platino', color: 'platinum' }
+            { min: 0, max: 1000000, percentage: 0.15, name: '1', color: 'bronze' },
+            { min: 1000001, max: 2000000, percentage: 0.08, name: '2', color: 'silver' },
+            { min: 2000001, max: 3000000, percentage: 0.05, name: '3', color: 'gold' },
+            { min: 3000001, max: Infinity, percentage: 0.03, name: '4', color: 'platinum' }
         ];
         
         this.init();
@@ -133,6 +133,7 @@ class LiquidacionesApp {
             this.showLoading('Finalizando...');
             this.data = JSON.parse(decompressed);
             this.technicians = this.data.tecnicos || [];
+
 
             this.cacheData(this.data);
             console.log(`✓ ${this.technicians.length} técnicos cargados`);
@@ -338,11 +339,17 @@ class LiquidacionesApp {
 
         const avatar = tech.nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
         
-        // Obtener el mes más reciente (mes actual)
-        const sortedMeses = tech.meses.sort((a, b) => new Date(b.mes) - new Date(a.mes));
-        const mesActual = sortedMeses[0];
-        const netoMesActual = mesActual ? mesActual.total_neto : 0;
-        const tareasMesActual = mesActual ? mesActual.cantidad_tareas : 0;
+        // Obtener el mes actual real (febrero 2026)
+        const hoy = new Date();
+        // Los meses en los datos están en formato "February 2026", no "2026-02"
+        const mesActualString = hoy.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        
+        // Buscar específicamente el mes actual en los datos del técnico
+        const mesActual = tech.meses.find(m => m.mes === mesActualString);
+        
+        // Asegurarse de que los valores sean números, no undefined o null
+        const netoMesActual = mesActual && typeof mesActual.total_neto === 'number' ? mesActual.total_neto : 0;
+        const tareasMesActual = mesActual && typeof mesActual.cantidad_tareas === 'number' ? mesActual.cantidad_tareas : 0;
         
         // Calcular porcentaje del mes actual
         const percentageMesActual = this.calculatePercentage(netoMesActual);
@@ -562,7 +569,7 @@ class LiquidacionesApp {
                 </div>
 
                 <div class="commission-tiers-table">
-                    <div class="tier-header">📊 Tabla de Comisiones por Niveles</div>
+                    <div class="tier-header">📊 TOPES DE COMISIÓN 📊</div>
                     ${this.COMMISSION_TIERS.map((tierItem, index) => {
                         const isActive = metCumplida && tier.name === tierItem.name;
                         const rangeMin = this.formatCurrency(tierItem.min);
@@ -667,6 +674,12 @@ class LiquidacionesApp {
                 </div>
             </div>
         `;
+    }
+
+    changeMonth(month) {
+        this.selectedMonth = month;
+        this.renderMonthFilter();
+        this.renderRanking();
     }
 
     changeMonth(month) {
@@ -947,8 +960,13 @@ class LiquidacionesApp {
             return;
         }
 
-        const sortedMeses = this.currentTechnician.meses.sort((a, b) => new Date(b.mes) - new Date(a.mes));
-        const mesActual = sortedMeses[0];
+        // Obtener el mes actual real (febrero 2026)
+        const hoy = new Date();
+        // Los meses en los datos están en formato "February 2026", no "2026-02"
+        const mesActualString = hoy.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        
+        // Buscar específicamente el mes actual en los datos del técnico
+        const mesActual = this.currentTechnician.meses.find(m => m.mes === mesActualString);
         
         if (!mesActual) {
             alert('No hay datos del mes actual disponibles');
@@ -993,8 +1011,69 @@ class LiquidacionesApp {
             const pageHeight = doc.internal.pageSize.getHeight();
             
             // Colores corporativos
-            const primaryColor = [99, 102, 241]; // Índigo
-            const textColor = [226, 232, 240]; // Gris claro
+            const primaryColor = [59, 130, 246]; // Azul corporativo
+            const secondaryColor = [139, 92, 246]; // Morado
+            const textColor = [248, 250, 252]; // Texto claro
+            const textMuted = [160, 174, 192]; // Texto muted
+            const bgDark = [11, 14, 26]; // Fondo oscuro principal
+            const bgCard = [28, 33, 48]; // Fondo de tarjetas
+            
+            // Función para agregar logo (se intenta cargar desde el HTML)
+            let logoDataUrl = null;
+            const logoImg = document.querySelector('.logo, .hero-logo-large');
+            if (logoImg && logoImg.src && !logoImg.src.includes('data:')) {
+                // Intentar cargar el logo
+                try {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const img = new Image();
+                    img.crossOrigin = 'anonymous';
+                    img.src = logoImg.src;
+                    // El logo se cargará de forma asíncrona, por ahora continuamos sin él
+                } catch(e) {
+                    console.log('Logo no disponible para PDF');
+                }
+            }
+            
+            // Función helper para aplicar fondo corporativo a una página
+            const applyPageBackground = (isFirstPage = false) => {
+                // Fondo oscuro principal
+                doc.setFillColor(...bgDark);
+                doc.rect(0, 0, pageWidth, pageHeight, 'F');
+                
+                // Header corporativo
+                doc.setFillColor(...bgCard);
+                doc.rect(0, 0, pageWidth, isFirstPage ? 40 : 25, 'F');
+                
+                // Borde inferior del header con gradiente simulado
+                doc.setDrawColor(...primaryColor);
+                doc.setLineWidth(0.5);
+                doc.line(0, isFirstPage ? 40 : 25, pageWidth, isFirstPage ? 40 : 25);
+                
+                if (isFirstPage) {
+                    // Header principal de primera página
+                    doc.setTextColor(255, 255, 255);
+                    doc.setFontSize(24);
+                    doc.setFont(undefined, 'bold');
+                    doc.text('LINEA COMUNICACIONES', pageWidth / 2, 15, { align: 'center' });
+                    doc.setFontSize(14);
+                    doc.setFont(undefined, 'normal');
+                    doc.text('Reporte de Liquidaciones', pageWidth / 2, 25, { align: 'center' });
+                    doc.setFontSize(10);
+                    doc.setTextColor(...textMuted);
+                    doc.text(`Generado el ${fechaGeneracion}`, pageWidth / 2, 33, { align: 'center' });
+                } else {
+                    // Header reducido para páginas siguientes
+                    doc.setTextColor(...primaryColor);
+                    doc.setFontSize(12);
+                    doc.setFont(undefined, 'bold');
+                    doc.text('LINEA COMUNICACIONES', 15, 10, { align: 'left' });
+                    doc.setTextColor(...textMuted);
+                    doc.setFontSize(9);
+                    doc.setFont(undefined, 'normal');
+                    doc.text(`${tech.nombre} - ${monthName}`, 15, 18, { align: 'left' });
+                }
+            };
             
             const monthName = new Date(targetMonth + '-01').toLocaleDateString('es-CO', {
                 month: 'long',
@@ -1013,28 +1092,19 @@ class LiquidacionesApp {
 
             let yPos = 0;
 
-            // Fondo oscuro
-            doc.setFillColor(17, 24, 39);
-            doc.rect(0, 0, pageWidth, pageHeight, 'F');
-
-            // Header con gradiente simulado
-            doc.setFillColor(26, 31, 58);
-            doc.rect(0, 0, pageWidth, 40, 'F');
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(24);
-            doc.setFont(undefined, 'bold');
-            doc.text('LINEA COMUNICACIONES', pageWidth / 2, 15, { align: 'center' });
-            doc.setFontSize(14);
-            doc.setFont(undefined, 'normal');
-            doc.text('Reporte de Liquidaciones', pageWidth / 2, 25, { align: 'center' });
-            doc.setFontSize(10);
-            doc.text(`Generado el ${fechaGeneracion}`, pageWidth / 2, 33, { align: 'center' });
+            // Aplicar fondo de primera página
+            applyPageBackground(true);
 
             yPos = 50;
 
-            // Información del técnico
-            doc.setFillColor(26, 31, 58);
+            // Información del técnico con diseño mejorado
+            doc.setFillColor(...bgCard);
             doc.roundedRect(15, yPos, pageWidth - 30, 35, 3, 3, 'F');
+            
+            // Borde con acento
+            doc.setDrawColor(...primaryColor);
+            doc.setLineWidth(0.5);
+            doc.roundedRect(15, yPos, pageWidth - 30, 35, 3, 3, 'S');
             
             doc.setTextColor(...primaryColor);
             doc.setFontSize(18);
@@ -1065,9 +1135,12 @@ class LiquidacionesApp {
             const startX = 15;
 
             // Box 1: Total Tareas
-            doc.setFillColor(30, 39, 66);
+            doc.setFillColor(...bgCard);
             doc.roundedRect(startX, yPos, boxWidth, boxHeight, 2, 2, 'F');
-            doc.setTextColor(160, 174, 192);
+            doc.setDrawColor(...primaryColor);
+            doc.setLineWidth(0.3);
+            doc.roundedRect(startX, yPos, boxWidth, boxHeight, 2, 2, 'S');
+            doc.setTextColor(...textMuted);
             doc.setFontSize(8);
             doc.setFont(undefined, 'bold');
             doc.text('TOTAL TAREAS', startX + boxWidth / 2, yPos + 8, { align: 'center' });
@@ -1076,9 +1149,11 @@ class LiquidacionesApp {
             doc.text(String(tareasMes), startX + boxWidth / 2, yPos + 18, { align: 'center' });
 
             // Box 2: Neto Recaudado
-            doc.setFillColor(30, 39, 66);
+            doc.setFillColor(...bgCard);
             doc.roundedRect(startX + boxWidth + 5, yPos, boxWidth, boxHeight, 2, 2, 'F');
-            doc.setTextColor(160, 174, 192);
+            doc.setDrawColor(...primaryColor);
+            doc.roundedRect(startX + boxWidth + 5, yPos, boxWidth, boxHeight, 2, 2, 'S');
+            doc.setTextColor(...textMuted);
             doc.setFontSize(8);
             doc.text('NETO RECAUDADO', startX + boxWidth + 5 + boxWidth / 2, yPos + 8, { align: 'center' });
             doc.setTextColor(...primaryColor);
@@ -1087,9 +1162,11 @@ class LiquidacionesApp {
 
             // Box 3: % Cumplimiento
             const percentageColor = this.getPercentageColorRGB(percentageMes);
-            doc.setFillColor(30, 39, 66);
+            doc.setFillColor(...bgCard);
             doc.roundedRect(startX + (boxWidth + 5) * 2, yPos, boxWidth, boxHeight, 2, 2, 'F');
-            doc.setTextColor(160, 174, 192);
+            doc.setDrawColor(...primaryColor);
+            doc.roundedRect(startX + (boxWidth + 5) * 2, yPos, boxWidth, boxHeight, 2, 2, 'S');
+            doc.setTextColor(...textMuted);
             doc.setFontSize(8);
             doc.text('% CUMPLIMIENTO', startX + (boxWidth + 5) * 2 + boxWidth / 2, yPos + 8, { align: 'center' });
             doc.setTextColor(...percentageColor);
@@ -1108,69 +1185,122 @@ class LiquidacionesApp {
                 yPos += 8;
 
                 // Headers de la tabla
-                doc.setFillColor(26, 31, 58);
+                doc.setFillColor(...bgCard);
                 doc.rect(15, yPos, pageWidth - 30, 10, 'F');
+                doc.setDrawColor(...primaryColor);
+                doc.setLineWidth(0.5);
+                doc.line(15, yPos + 10, pageWidth - 15, yPos + 10);
                 doc.setTextColor(...primaryColor);
-                doc.setFontSize(8);
+                doc.setFontSize(7);
                 doc.setFont(undefined, 'bold');
-                doc.text('FECHA', 20, yPos + 7);
-                doc.text('TIPO', 55, yPos + 7);
-                doc.text('UBICACIÓN', 95, yPos + 7);
-                doc.text('VALOR', 165, yPos + 7);
+                doc.text('FECHA', 18, yPos + 7);
+                doc.text('TIPOLOGÍA', 40, yPos + 7);
+                doc.text('TIPO', 75, yPos + 7);
+                doc.text('UBICACIÓN', 105, yPos + 7);
+                doc.text('ESTADO', 148, yPos + 7);
+                doc.text('VALOR', 175, yPos + 7);
 
                 yPos += 10;
 
-                // Filas de tareas (máximo 15 para no exceder la página)
+                // Filas de tareas - TODAS las tareas con manejo de múltiples páginas
                 doc.setFont(undefined, 'normal');
                 const tareasOrdenadas = mesData.tareas
-                    .sort((a, b) => new Date(b.fecha_cierre || b.fecha_resolucion) - new Date(a.fecha_cierre || a.fecha_resolucion))
-                    .slice(0, 15);
+                    .sort((a, b) => new Date(b.fecha_cierre || b.fecha_resolucion) - new Date(a.fecha_cierre || a.fecha_resolucion));
                 
                 let rowCount = 0;
                 for (const tarea of tareasOrdenadas) {
-                    if (yPos > pageHeight - 30) break; // Evitar overflow
+                    // Si llegamos al final de la página, crear una nueva
+                    if (yPos > pageHeight - 30) {
+                        // Agregar nueva página
+                        doc.addPage();
+                        
+                        // Aplicar fondo corporativo a la nueva página
+                        applyPageBackground(false);
+                        
+                        yPos = 35; // Comenzar después del header reducido
+                        
+                        // Re-agregar headers de la tabla en la nueva página
+                        doc.setFillColor(...bgCard);
+                        doc.rect(15, yPos, pageWidth - 30, 10, 'F');
+                        doc.setDrawColor(...primaryColor);
+                        doc.setLineWidth(0.5);
+                        doc.line(15, yPos + 10, pageWidth - 15, yPos + 10);
+                        doc.setTextColor(...primaryColor);
+                        doc.setFontSize(7);
+                        doc.setFont(undefined, 'bold');
+                        doc.text('FECHA', 18, yPos + 7);
+                        doc.text('TIPOLOGÍA', 40, yPos + 7);
+                        doc.text('TIPO', 75, yPos + 7);
+                        doc.text('UBICACIÓN', 105, yPos + 7);
+                        doc.text('ESTADO', 148, yPos + 7);
+                        doc.text('VALOR', 175, yPos + 7);
+                        
+                        yPos += 10;
+                        doc.setFont(undefined, 'normal');
+                        rowCount = 0; // Reiniciar contador para alternar colores
+                    }
 
-                    // Fila alternada
+                    // Fila alternada con colores mejorados
                     if (rowCount % 2 === 0) {
-                        doc.setFillColor(20, 25, 48);
+                        doc.setFillColor(15, 18, 30);
                         doc.rect(15, yPos, pageWidth - 30, 8, 'F');
                     }
 
                     doc.setTextColor(...textColor);
-                    doc.setFontSize(7);
+                    doc.setFontSize(6.5);
                     
                     const fecha = new Date(tarea.fecha_cierre || tarea.fecha_resolucion).toLocaleDateString('es-CO', {
                         day: '2-digit',
                         month: '2-digit'
                     });
                     
+                    const tipologia = (tarea.tipificacion || tarea.categoria || 'N/A').substring(0, 15);
                     const tipo = (tarea.tipo_actividad || tarea.tipo_origen || tarea.tipo || 'Tarea').substring(0, 12);
-                    const ubicacion = (tarea.nombre_punto || tarea.ciudad || 'N/A').substring(0, 20);
+                    const ubicacion = (tarea.nombre_punto || tarea.ciudad || 'N/A').substring(0, 18);
+                    const estado = (tarea.estado || tarea.estado_tarea || 'Cerrada').substring(0, 10);
 
-                    doc.text(fecha, 20, yPos + 6);
-                    doc.text(tipo, 55, yPos + 6);
-                    doc.text(ubicacion, 95, yPos + 6);
-                    doc.text(this.formatCurrency(tarea.valor_neto), 165, yPos + 6);
+                    doc.text(fecha, 18, yPos + 6);
+                    doc.text(tipologia, 40, yPos + 6);
+                    doc.text(tipo, 75, yPos + 6);
+                    doc.text(ubicacion, 105, yPos + 6);
+                    doc.text(estado, 148, yPos + 6);
+                    
+                    // Valor destacado
+                    doc.setFontSize(7);
+                    doc.setFont(undefined, 'bold');
+                    doc.setTextColor(...primaryColor);
+                    doc.text(this.formatCurrency(tarea.valor_neto), 175, yPos + 6);
+                    doc.setFont(undefined, 'normal');
+                    doc.setTextColor(...textColor);
 
                     yPos += 8;
                     rowCount++;
                 }
-
-                if (mesData.tareas.length > 15) {
-                    yPos += 5;
-                    doc.setTextColor(160, 174, 192);
-                    doc.setFontSize(7);
-                    doc.text(`... y ${mesData.tareas.length - 15} tareas más`, pageWidth / 2, yPos, { align: 'center' });
-                }
             }
 
-            // Footer
-            yPos = pageHeight - 20;
-            doc.setTextColor(160, 174, 192);
-            doc.setFontSize(8);
-            doc.text('Meta mensual: ' + this.formatCurrency(this.META_MENSUAL), pageWidth / 2, yPos, { align: 'center' });
-            doc.setFontSize(7);
-            doc.text('Documento generado automáticamente - Línea Comunicaciones', pageWidth / 2, yPos + 5, { align: 'center' });
+            // Footer en todas las páginas con diseño corporativo
+            const totalPages = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                doc.setPage(i);
+                const footerY = pageHeight - 20;
+                
+                // Línea decorativa superior del footer
+                doc.setDrawColor(...primaryColor);
+                doc.setLineWidth(0.3);
+                doc.line(15, footerY - 5, pageWidth - 15, footerY - 5);
+                
+                doc.setTextColor(...textMuted);
+                doc.setFontSize(8);
+                doc.setFont(undefined, 'normal');
+                doc.text('Meta mensual: ' + this.formatCurrency(this.META_MENSUAL), pageWidth / 2, footerY, { align: 'center' });
+                doc.setFontSize(7);
+                doc.text('Documento generado automáticamente - Línea Comunicaciones', pageWidth / 2, footerY + 5, { align: 'center' });
+                
+                // Número de página
+                doc.setTextColor(...primaryColor);
+                doc.setFont(undefined, 'bold');
+                doc.text(`${i} / ${totalPages}`, pageWidth - 20, footerY + 5, { align: 'right' });
+            }
 
             // Guardar PDF
             const fileName = `liquidacion_${tech.nombre.replace(/\s+/g, '_')}_${targetMonth}.pdf`;
