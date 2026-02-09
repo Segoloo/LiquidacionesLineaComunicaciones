@@ -1354,3 +1354,11 @@ let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new LiquidacionesApp();
 });
+// Mensaje de créditos en consola
+console.log('%c╔═══════════════════════════════════════════════════════════════════╗', 'color: #3B82F6; font-weight: bold;');
+console.log('%c║  Sistema de Producción - Linea Comunicaciones                    ║', 'color: #3B82F6; font-weight: bold;');
+console.log('%c║                                                                   ║', 'color: #3B82F6;');
+console.log('%c║  👨‍💻 Desarrollado por: Sebastian Gomez Lopez                      ║', 'color: #8B5CF6; font-weight: bold;');
+console.log('%c║  💼 Desarrollador de Software                                     ║', 'color: #8B5CF6;');
+console.log('%c║  🎓 Ingeniero de Sistemas en proceso                             ║', 'color: #8B5CF6;');
+console.log('%c╚═══════════════════════════════════════════════════════════════════╝', 'color: #3B82F6; font-weight: bold;');

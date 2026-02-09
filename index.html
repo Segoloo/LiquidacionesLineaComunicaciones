@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
 
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Producción - Linea Comunicaciones</title>
+    <title>Producción - Linea Comunicaciones | Desarrollado por Sebastian Gomez Lopez</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
@@ -305,6 +305,20 @@
             animation: pulse 2s ease-in-out infinite 0.3s;
         }
 
+        .loading-dev-credit {
+            font-size: 0.6875rem;
+            color: var(--text-muted);
+            margin-top: 2rem;
+            opacity: 0.5;
+            font-weight: 400;
+            letter-spacing: 0.05em;
+            transition: opacity 0.3s ease;
+        }
+
+        .loading-dev-credit:hover {
+            opacity: 0.8;
+        }
+
         /* Header */
         .header {
             background: rgba(21, 25, 37, 0.95);
@@ -372,6 +386,19 @@
             background: rgba(59, 130, 246, 0.1);
             border-radius: 8px;
             border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        .dev-credit-subtle {
+            font-size: 0.625rem;
+            color: var(--text-muted);
+            opacity: 0.4;
+            margin-top: 0.25rem;
+            letter-spacing: 0.03em;
+            transition: opacity 0.3s ease;
+        }
+
+        .dev-credit-subtle:hover {
+            opacity: 0.7;
         }
 
         /* Container */
@@ -2647,16 +2674,135 @@
                 min-width: 80px;
             }
         }
+
+        /* Footer Styles */
+        .app-footer {
+            background: linear-gradient(180deg, rgba(11, 14, 26, 0) 0%, rgba(11, 14, 26, 0.8) 100%);
+            border-top: 1px solid rgba(59, 130, 246, 0.1);
+            margin-top: 4rem;
+            padding: 2rem 0 1.5rem;
+            position: relative;
+        }
+
+        .footer-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+        }
+
+        .developer-credits {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.875rem;
+            padding: 0.875rem 1.25rem;
+            background: rgba(28, 33, 48, 0.3);
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            border-radius: 12px;
+            backdrop-filter: blur(8px);
+            transition: all 0.3s ease;
+            max-width: 500px;
+            margin: 0 auto;
+            opacity: 0.7;
+        }
+
+        .developer-credits:hover {
+            background: rgba(28, 33, 48, 0.5);
+            border-color: rgba(59, 130, 246, 0.3);
+            opacity: 1;
+            transform: translateY(-1px);
+        }
+
+        .credits-icon {
+            font-size: 1.5rem;
+            filter: grayscale(0.3);
+            transition: filter 0.3s ease;
+        }
+
+        .developer-credits:hover .credits-icon {
+            filter: grayscale(0);
+        }
+
+        .credits-info {
+            text-align: left;
+            flex: 1;
+        }
+
+        .credits-label {
+            font-size: 0.625rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-bottom: 0.125rem;
+            font-weight: 500;
+            opacity: 0.6;
+        }
+
+        .credits-name {
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 0.125rem;
+            transition: color 0.3s ease;
+        }
+
+        .developer-credits:hover .credits-name {
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .credits-role {
+            font-size: 0.6875rem;
+            color: var(--text-muted);
+            line-height: 1.3;
+            font-weight: 400;
+            opacity: 0.7;
+        }
+
+        @media (max-width: 640px) {
+            .app-footer {
+                padding: 1.5rem 0 1rem;
+                margin-top: 3rem;
+            }
+
+            .developer-credits {
+                flex-direction: row;
+                gap: 0.75rem;
+                padding: 0.75rem 1rem;
+            }
+
+            .credits-icon {
+                font-size: 1.25rem;
+            }
+
+            .credits-name {
+                font-size: 0.875rem;
+            }
+
+            .credits-role {
+                font-size: 0.625rem;
+            }
+        }
         
     </style>
 </head>
 <body>
+    <!-- 
+    ═══════════════════════════════════════════════════════════════════════
+    Sistema de Producción - Linea Comunicaciones
+    Desarrollado por: Sebastian Gomez Lopez
+    Desarrollador de Software - Ingeniero de Sistemas en proceso
+    ═══════════════════════════════════════════════════════════════════════
+    -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="loading-content">
             <img src="logo.png" alt="Linea Comunicaciones" class="loading-logo" onerror="this.style.display='none'">
             <div class="loading-spinner"></div>
             <div class="loading-text">Cargando sistema...</div>
             <div class="loading-progress" id="loadingProgress">Inicializando</div>
+            <div class="loading-dev-credit">Desarrollado por Sebastian Gomez Lopez</div>
         </div>
     </div>
 
@@ -2668,6 +2814,7 @@
             </div>
             <div class="last-update">
                 <div id="lastUpdate">Actualizando...</div>
+                <div class="dev-credit-subtle">Dev: Sebastian Gomez</div>
             </div>
         </div>
     </header>
@@ -2713,6 +2860,19 @@
             <div id="techDetails"></div>
         </div>
     </div>
+
+    <footer class="app-footer">
+        <div class="footer-content">
+            <div class="developer-credits">
+                <div class="credits-icon">💻</div>
+                <div class="credits-info">
+                    <div class="credits-label">Desarrollado por:</div>
+                    <div class="credits-name">Sebastian Gomez Lopez</div>
+                    <div class="credits-role">Desarrollador de Software - Ingeniero de Sistemas en proceso</div>
+                </div>
+            </div>
+        </div>
+    </footer>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <script src="app.js"></script>
