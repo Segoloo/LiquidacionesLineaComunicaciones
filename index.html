@@ -2509,6 +2509,7 @@
 
         .month-card-info {
             flex: 1;
+            min-width: 0;
         }
 
         .month-card-title {
@@ -2517,17 +2518,71 @@
             color: var(--text-primary);
             margin-bottom: 0.25rem;
             text-transform: capitalize;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 640px) {
+            .month-card-title {
+                font-size: 1rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .month-card-title {
+                font-size: 0.9rem;
+                white-space: normal;
+                line-height: 1.3;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .month-card-title {
+                font-size: 0.85rem;
+            }
         }
 
         .month-card-subtitle {
             font-size: 0.875rem;
             color: var(--text-muted);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 640px) {
+            .month-card-subtitle {
+                font-size: 0.8125rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .month-card-subtitle {
+                font-size: 0.75rem;
+                display: none;
+            }
         }
 
         .month-card-right {
             display: flex;
             align-items: center;
             gap: 1rem;
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 640px) {
+            .month-card-right {
+                gap: 0.75rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .month-card-right {
+                gap: 0.5rem;
+                flex-direction: column;
+                align-items: flex-end;
+            }
         }
 
         .month-card-amount {
@@ -2535,6 +2590,25 @@
             font-size: 1.25rem;
             color: var(--accent-primary);
             font-family: 'Courier New', monospace;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 640px) {
+            .month-card-amount {
+                font-size: 1.125rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .month-card-amount {
+                font-size: 1rem;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .month-card-amount {
+                font-size: 0.9rem;
+            }
         }
 
         .expand-icon {
@@ -2565,9 +2639,35 @@
             overflow-x: hidden;
         }
 
+        @media (max-width: 640px) {
+            .tasks-section {
+                padding: 1.25rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .tasks-section {
+                padding: 1rem 0.85rem;
+                max-height: 500px;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .tasks-section {
+                padding: 0.85rem 0.65rem;
+                max-height: 450px;
+            }
+        }
+
         /* Scrollbar personalizado para la sección de tareas */
         .tasks-section::-webkit-scrollbar {
             width: 8px;
+        }
+
+        @media (max-width: 480px) {
+            .tasks-section::-webkit-scrollbar {
+                width: 6px;
+            }
         }
 
         .tasks-section::-webkit-scrollbar-track {
@@ -2593,12 +2693,55 @@
             letter-spacing: 0.05em;
         }
 
+        @media (max-width: 640px) {
+            .tasks-title {
+                font-size: 0.9375rem;
+                margin-bottom: 0.875rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .tasks-title {
+                font-size: 0.875rem;
+                margin-bottom: 0.75rem;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .tasks-title {
+                font-size: 0.8125rem;
+            }
+        }
+
         .task-item {
             background: var(--bg-card);
             border: 1px solid var(--border-color);
             border-radius: 12px;
             padding: 1rem;
             margin-bottom: 0.75rem;
+        }
+
+        @media (max-width: 640px) {
+            .task-item {
+                padding: 0.875rem;
+                border-radius: 10px;
+                margin-bottom: 0.65rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .task-item {
+                padding: 0.75rem 0.65rem;
+                border-radius: 8px;
+                margin-bottom: 0.6rem;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .task-item {
+                padding: 0.65rem 0.55rem;
+                margin-bottom: 0.5rem;
+            }
         }
 
         .task-item:last-child {
@@ -2612,6 +2755,22 @@
             margin-bottom: 0.75rem;
             gap: 0.75rem;
             flex-wrap: wrap;
+        }
+
+        @media (max-width: 640px) {
+            .task-header {
+                margin-bottom: 0.65rem;
+                gap: 0.6rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .task-header {
+                flex-direction: column;
+                align-items: flex-start;
+                margin-bottom: 0.6rem;
+                gap: 0.5rem;
+            }
         }
 
         .task-type-badge {
@@ -2629,10 +2788,51 @@
             letter-spacing: 0.025em;
         }
 
+        @media (max-width: 640px) {
+            .task-type-badge {
+                font-size: 0.7rem;
+                padding: 0.3rem 0.65rem;
+                border-radius: 6px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .task-type-badge {
+                font-size: 0.65rem;
+                padding: 0.28rem 0.6rem;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .task-type-badge {
+                font-size: 0.6rem;
+                padding: 0.25rem 0.5rem;
+            }
+        }
+
         .task-id {
             font-size: 0.75rem;
             color: var(--text-muted);
             font-family: 'Courier New', monospace;
+            word-break: break-all;
+        }
+
+        @media (max-width: 640px) {
+            .task-id {
+                font-size: 0.7rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .task-id {
+                font-size: 0.65rem;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .task-id {
+                font-size: 0.6rem;
+            }
         }
 
         .task-body {
@@ -2640,6 +2840,19 @@
             justify-content: space-between;
             align-items: flex-start;
             gap: 1rem;
+        }
+
+        @media (max-width: 640px) {
+            .task-body {
+                gap: 0.75rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .task-body {
+                flex-direction: column;
+                gap: 0.65rem;
+            }
         }
 
         .task-info {
@@ -2656,6 +2869,41 @@
             color: var(--text-secondary);
             margin-bottom: 0.375rem;
             line-height: 1.5;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        @media (max-width: 640px) {
+            .task-location,
+            .task-dept,
+            .task-tipif,
+            .task-date,
+            .task-form {
+                font-size: 0.75rem;
+                margin-bottom: 0.35rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .task-location,
+            .task-dept,
+            .task-tipif,
+            .task-date,
+            .task-form {
+                font-size: 0.7rem;
+                margin-bottom: 0.3rem;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .task-location,
+            .task-dept,
+            .task-tipif,
+            .task-date,
+            .task-form {
+                font-size: 0.65rem;
+                margin-bottom: 0.25rem;
+            }
         }
 
         .task-location {
@@ -2672,6 +2920,25 @@
             flex-shrink: 0;
         }
 
+        @media (max-width: 640px) {
+            .task-value {
+                font-size: 1.125rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .task-value {
+                font-size: 1rem;
+                align-self: flex-start;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .task-value {
+                font-size: 0.9rem;
+            }
+        }
+
         /* Month Stats Grid - Estadísticas con Porcentaje de Cumplimiento */
         .month-stats-container {
             padding: 1.5rem;
@@ -2679,11 +2946,49 @@
             border-bottom: 1px solid var(--border-color);
         }
 
+        @media (max-width: 640px) {
+            .month-stats-container {
+                padding: 1.25rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .month-stats-container {
+                padding: 1rem 0.85rem;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .month-stats-container {
+                padding: 0.85rem 0.65rem;
+            }
+        }
+
         .month-stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
             gap: 1rem;
             margin-bottom: 1rem;
+        }
+
+        @media (max-width: 640px) {
+            .month-stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 0.875rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .month-stats-grid {
+                grid-template-columns: 1fr;
+                gap: 0.75rem;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .month-stats-grid {
+                gap: 0.65rem;
+            }
         }
 
         .month-stat-card {
@@ -2695,10 +3000,36 @@
             transition: all 0.3s ease;
         }
 
+        @media (max-width: 640px) {
+            .month-stat-card {
+                padding: 0.875rem;
+                border-radius: 10px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .month-stat-card {
+                padding: 0.75rem 0.65rem;
+                border-radius: 8px;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .month-stat-card {
+                padding: 0.65rem 0.55rem;
+            }
+        }
+
         .month-stat-card:hover {
             border-color: rgba(0, 212, 255, 0.3);
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0, 212, 255, 0.1);
+        }
+
+        @media (max-width: 480px) {
+            .month-stat-card:hover {
+                transform: none;
+            }
         }
 
         .month-percentage-card {
@@ -2710,10 +3041,36 @@
             transition: all 0.3s ease;
         }
 
+        @media (max-width: 640px) {
+            .month-percentage-card {
+                padding: 1.125rem;
+                border-radius: 10px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .month-percentage-card {
+                padding: 1rem 0.85rem;
+                border-radius: 8px;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .month-percentage-card {
+                padding: 0.875rem 0.75rem;
+            }
+        }
+
         .month-percentage-card:hover {
             border-color: rgba(0, 212, 255, 0.3);
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0, 212, 255, 0.1);
+        }
+
+        @media (max-width: 480px) {
+            .month-percentage-card:hover {
+                transform: none;
+            }
         }
 
         .month-stat-label {
@@ -2725,6 +3082,28 @@
             margin-bottom: 0.75rem;
         }
 
+        @media (max-width: 640px) {
+            .month-stat-label {
+                font-size: 0.7rem;
+                margin-bottom: 0.65rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .month-stat-label {
+                font-size: 0.65rem;
+                margin-bottom: 0.6rem;
+                letter-spacing: 0.03em;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .month-stat-label {
+                font-size: 0.6rem;
+                margin-bottom: 0.5rem;
+            }
+        }
+
         .month-stat-value {
             font-size: 1.5rem;
             font-weight: 800;
@@ -2733,9 +3112,45 @@
             word-break: break-word;
         }
 
+        @media (max-width: 640px) {
+            .month-stat-value {
+                font-size: 1.35rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .month-stat-value {
+                font-size: 1.2rem;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .month-stat-value {
+                font-size: 1.1rem;
+            }
+        }
+
         .percentage-status {
             font-weight: 600;
             text-align: center;
+        }
+
+        @media (max-width: 640px) {
+            .percentage-status {
+                font-size: 0.9rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .percentage-status {
+                font-size: 0.85rem;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .percentage-status {
+                font-size: 0.8rem;
+            }
         }
 
         .progress-bar-container {
@@ -2748,22 +3163,25 @@
             position: relative;
         }
 
+        @media (max-width: 640px) {
+            .progress-bar-container {
+                height: 7px;
+                margin-top: 0.875rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .progress-bar-container {
+                height: 6px;
+                margin-top: 0.75rem;
+            }
+        }
+
         .progress-bar-fill {
             height: 100%;
             border-radius: 10px;
             transition: width 0.8s ease, background 0.3s ease;
             position: relative;
-        }
-
-        /* Responsive para pantallas pequeñas */
-        @media (max-width: 480px) {
-            .month-stats-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .month-stat-value {
-                font-size: 1.25rem;
-            }
         }
 
         /* Empty State */
@@ -3234,6 +3652,29 @@
             box-shadow: 0 8px 32px rgba(245, 158, 11, 0.12);
         }
 
+        @media (max-width: 640px) {
+            .commission-card {
+                padding: 1.5rem;
+                border-radius: 16px;
+                margin-top: 1.25rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .commission-card {
+                padding: 1.25rem 1rem;
+                border-radius: 14px;
+                margin-top: 1rem;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .commission-card {
+                padding: 1rem 0.85rem;
+                border-radius: 12px;
+            }
+        }
+
         .commission-card::before {
             content: '';
             position: absolute;
@@ -3245,11 +3686,34 @@
             box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
         }
 
+        @media (max-width: 480px) {
+            .commission-card::before {
+                height: 3px;
+            }
+        }
+
         .commission-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
             margin-bottom: 1.5rem;
+            gap: 0.75rem;
+        }
+
+        @media (max-width: 640px) {
+            .commission-header {
+                margin-bottom: 1.25rem;
+                gap: 0.6rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .commission-header {
+                flex-direction: column;
+                align-items: flex-start;
+                margin-bottom: 1rem;
+                gap: 0.5rem;
+            }
         }
 
         .commission-title {
@@ -3264,9 +3728,47 @@
             gap: 0.75rem;
         }
 
+        @media (max-width: 640px) {
+            .commission-title {
+                font-size: 1.25rem;
+                gap: 0.6rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .commission-title {
+                font-size: 1.125rem;
+                gap: 0.5rem;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .commission-title {
+                font-size: 1rem;
+            }
+        }
+
         .commission-icon {
             font-size: 1.75rem;
             filter: drop-shadow(0 2px 8px rgba(245, 158, 11, 0.4));
+        }
+
+        @media (max-width: 640px) {
+            .commission-icon {
+                font-size: 1.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .commission-icon {
+                font-size: 1.35rem;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .commission-icon {
+                font-size: 1.25rem;
+            }
         }
 
         .commission-amount-box {
@@ -3279,6 +3781,29 @@
             position: relative;
             overflow: hidden;
             box-shadow: 0 4px 20px rgba(245, 158, 11, 0.1);
+        }
+
+        @media (max-width: 640px) {
+            .commission-amount-box {
+                padding: 1.5rem 1.25rem;
+                border-radius: 14px;
+                margin-bottom: 1.25rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .commission-amount-box {
+                padding: 1.25rem 1rem;
+                border-radius: 12px;
+                margin-bottom: 1rem;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .commission-amount-box {
+                padding: 1rem 0.85rem;
+                border-radius: 10px;
+            }
         }
 
         .commission-amount-box::after {
@@ -3301,6 +3826,27 @@
             letter-spacing: 0.05em;
         }
 
+        @media (max-width: 640px) {
+            .commission-label {
+                font-size: 0.875rem;
+                margin-bottom: 0.65rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .commission-label {
+                font-size: 0.8125rem;
+                margin-bottom: 0.6rem;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .commission-label {
+                font-size: 0.75rem;
+                margin-bottom: 0.5rem;
+            }
+        }
+
         .commission-value {
             font-size: 3rem;
             font-weight: 900;
@@ -3312,11 +3858,50 @@
             line-height: 1;
         }
 
+        @media (max-width: 640px) {
+            .commission-value {
+                font-size: 2.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .commission-value {
+                font-size: 2rem;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .commission-value {
+                font-size: 1.75rem;
+            }
+        }
+
         .commission-subtitle {
             font-size: 0.875rem;
             color: var(--text-muted);
             margin-top: 0.75rem;
             font-weight: 500;
+        }
+
+        @media (max-width: 640px) {
+            .commission-subtitle {
+                font-size: 0.8125rem;
+                margin-top: 0.65rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .commission-subtitle {
+                font-size: 0.75rem;
+                margin-top: 0.6rem;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .commission-subtitle {
+                font-size: 0.7rem;
+                margin-top: 0.5rem;
+            }
         }
 
         .commission-details {
@@ -3326,12 +3911,58 @@
             margin-top: 1rem;
         }
 
+        @media (max-width: 640px) {
+            .commission-details {
+                padding: 0.875rem;
+                border-radius: 10px;
+                margin-top: 0.875rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .commission-details {
+                padding: 0.75rem 0.65rem;
+                border-radius: 8px;
+                margin-top: 0.75rem;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .commission-details {
+                padding: 0.65rem 0.55rem;
+                margin-top: 0.65rem;
+            }
+        }
+
         .commission-detail-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 0.75rem 0;
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            gap: 0.75rem;
+        }
+
+        @media (max-width: 640px) {
+            .commission-detail-row {
+                padding: 0.65rem 0;
+                gap: 0.6rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .commission-detail-row {
+                padding: 0.6rem 0;
+                gap: 0.5rem;
+                flex-wrap: wrap;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .commission-detail-row {
+                padding: 0.5rem 0;
+                gap: 0.4rem;
+            }
         }
 
         .commission-detail-row:last-child {
@@ -3344,12 +3975,54 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            word-break: break-word;
+        }
+
+        @media (max-width: 640px) {
+            .commission-detail-label {
+                font-size: 0.8125rem;
+                gap: 0.4rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .commission-detail-label {
+                font-size: 0.75rem;
+                gap: 0.35rem;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .commission-detail-label {
+                font-size: 0.7rem;
+                gap: 0.3rem;
+            }
         }
 
         .commission-detail-value {
             font-size: 1rem;
             font-weight: 600;
             color: var(--text-primary);
+            text-align: right;
+            word-break: break-word;
+        }
+
+        @media (max-width: 640px) {
+            .commission-detail-value {
+                font-size: 0.9375rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .commission-detail-value {
+                font-size: 0.875rem;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .commission-detail-value {
+                font-size: 0.8125rem;
+            }
         }
 
         .commission-tier-badge {
