@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Convertir Excel a JSON - Sistema de Producción</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .info-box {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 30px;
+            border-radius: 5px;
+        }
+
+        .info-box h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .info-box ul {
+            margin-left: 20px;
+            color: #555;
+            line-height: 1.8;
+        }
+
+        .file-list {
+            display: grid;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: #f9fafb;
+            border-radius: 10px;
+            border: 2px dashed #ddd;
+            transition: all 0.3s;
+        }
+
+        .file-item:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .file-item.loaded {
+            border-style: solid;
+            border-color: #10b981;
+            background: #d1fae5;
+        }
+
+        .file-item.loading {
+            border-color: #f59e0b;
+            background: #fef3c7;
+        }
+
+        .file-item.error {
+            border-color: #ef4444;
+            background: #fee2e2;
+        }
+
+        .file-label {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .file-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .file-status {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .btn-container {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .progress-bar.active {
+            display: block;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .log {
+            background: #1f2937;
+            color: #10b981;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 30px;
+            display: none;
+        }
+
+        .log.active {
+            display: block;
+        }
+
+        .log-line {
+            margin-bottom: 5px;
+        }
+
+        .log-success {
+            color: #10b981;
+        }
+
+        .log-error {
+            color: #ef4444;
+        }
+
+        .log-info {
+            color: #60a5fa;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loading {
+            animation: pulse 1.5s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Convertir Excel a JSON</h1>
+        <p class="subtitle">Sistema de Producción - Optimización de Carga</p>
+
+        <div class="info-box">
+            <h3>📋 Instrucciones:</h3>
+            <ul>
+                <li>Carga los 7 archivos Excel (JUNIO.xlsx a DICIEMBRE.xlsx)</li>
+                <li>El sistema los convertirá a un archivo JSON optimizado</li>
+                <li>Descarga el archivo <strong>meses_2025.json</strong></li>
+                <li>Coloca el archivo en la carpeta <strong>data/</strong> de tu aplicación</li>
+            </ul>
+        </div>
+
+        <div class="file-list">
+            <div class="file-item" id="file-junio">
+                <label class="file-label">
+                    <input type="file" class="file-input" accept=".xlsx" data-month="June 2025" data-filename="JUNIO.xlsx">
+                    <span class="file-name">📁 JUNIO.xlsx</span>
+                    <span class="file-status">Sin cargar</span>
+                </label>
+            </div>
+            <div class="file-item" id="file-julio">
+                <label class="file-label">
+                    <input type="file" class="file-input" accept=".xlsx" data-month="July 2025" data-filename="JULIO.xlsx">
+                    <span class="file-name">📁 JULIO.xlsx</span>
+                    <span class="file-status">Sin cargar</span>
+                </label>
+            </div>
+            <div class="file-item" id="file-agosto">
+                <label class="file-label">
+                    <input type="file" class="file-input" accept=".xlsx" data-month="August 2025" data-filename="AGOSTO.xlsx">
+                    <span class="file-name">📁 AGOSTO.xlsx</span>
+                    <span class="file-status">Sin cargar</span>
+                </label>
+            </div>
+            <div class="file-item" id="file-septiembre">
+                <label class="file-label">
+                    <input type="file" class="file-input" accept=".xlsx" data-month="September 2025" data-filename="SEPTIEMBRE.xlsx">
+                    <span class="file-name">📁 SEPTIEMBRE.xlsx</span>
+                    <span class="file-status">Sin cargar</span>
+                </label>
+            </div>
+            <div class="file-item" id="file-octubre">
+                <label class="file-label">
+                    <input type="file" class="file-input" accept=".xlsx" data-month="October 2025" data-filename="OCTUBRE.xlsx">
+                    <span class="file-name">📁 OCTUBRE.xlsx</span>
+                    <span class="file-status">Sin cargar</span>
+                </label>
+            </div>
+            <div class="file-item" id="file-noviembre">
+                <label class="file-label">
+                    <input type="file" class="file-input" accept=".xlsx" data-month="November 2025" data-filename="NOVIEMBRE.xlsx">
+                    <span class="file-name">📁 NOVIEMBRE.xlsx</span>
+                    <span class="file-status">Sin cargar</span>
+                </label>
+            </div>
+            <div class="file-item" id="file-diciembre">
+                <label class="file-label">
+                    <input type="file" class="file-input" accept=".xlsx" data-month="December 2025" data-filename="DICIEMBRE.xlsx">
+                    <span class="file-name">📁 DICIEMBRE.xlsx</span>
+                    <span class="file-status">Sin cargar</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <div class="btn-container">
+            <button class="btn btn-primary" id="convertBtn" disabled>
+                <span>⚡</span>
+                <span>Convertir a JSON</span>
+            </button>
+        </div>
+
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        const converter = {
+            files: {},
+            processedData: {},
+            
+            init() {
+                this.setupFileInputs();
+                this.setupConvertButton();
+            },
+
+            setupFileInputs() {
+                document.querySelectorAll('.file-input').forEach(input => {
+                    input.addEventListener('change', (e) => this.handleFileSelect(e));
+                });
+            },
+
+            setupConvertButton() {
+                document.getElementById('convertBtn').addEventListener('click', () => {
+                    this.convertAllFiles();
+                });
+            },
+
+            handleFileSelect(e) {
+                const input = e.target;
+                const file = input.files[0];
+                const month = input.dataset.month;
+                const expectedName = input.dataset.filename;
+                const fileItem = input.closest('.file-item');
+                const statusEl = fileItem.querySelector('.file-status');
+
+                if (!file) return;
+
+                // Validar nombre del archivo
+                if (!file.name.includes(expectedName.replace('.xlsx', ''))) {
+                    alert(`⚠️ Por favor selecciona el archivo ${expectedName}`);
+                    input.value = '';
+                    return;
+                }
+
+                fileItem.classList.remove('error');
+                fileItem.classList.add('loading');
+                statusEl.textContent = 'Cargando...';
+
+                this.files[month] = file;
+
+                setTimeout(() => {
+                    fileItem.classList.remove('loading');
+                    fileItem.classList.add('loaded');
+                    statusEl.textContent = '✓ Cargado';
+                    this.checkAllFilesLoaded();
+                }, 500);
+            },
+
+            checkAllFilesLoaded() {
+                const requiredMonths = [
+                    'June 2025', 'July 2025', 'August 2025', 'September 2025',
+                    'October 2025', 'November 2025', 'December 2025'
+                ];
+
+                const allLoaded = requiredMonths.every(month => this.files[month]);
+                document.getElementById('convertBtn').disabled = !allLoaded;
+            },
+
+            async convertAllFiles() {
+                const log = document.getElementById('log');
+                const progressBar = document.getElementById('progressBar');
+                const progressFill = document.getElementById('progressFill');
+                const convertBtn = document.getElementById('convertBtn');
+
+                log.classList.add('active');
+                progressBar.classList.add('active');
+                convertBtn.disabled = true;
+                log.innerHTML = '';
+
+                this.log('🚀 Iniciando conversión de archivos Excel a JSON...', 'info');
+
+                const months = Object.keys(this.files);
+                let processed = 0;
+
+                for (const month of months) {
+                    try {
+                        this.log(`📊 Procesando ${month}...`, 'info');
+                        await this.processExcelFile(month, this.files[month]);
+                        processed++;
+                        const progress = (processed / months.length) * 100;
+                        progressFill.style.width = `${progress}%`;
+                        this.log(`✓ ${month} procesado correctamente`, 'success');
+                    } catch (error) {
+                        this.log(`✗ Error en ${month}: ${error.message}`, 'error');
+                    }
+                }
+
+                // Generar archivo JSON final
+                this.log('📦 Generando archivo JSON final...', 'info');
+                this.generateJSON();
+            },
+
+            async processExcelFile(month, file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+
+                    reader.onload = (e) => {
+                        try {
+                            const data = new Uint8Array(e.target.result);
+                            const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+
+                            const actividades = this.parseActividades(workbook);
+                            const produccion = this.parseProduccion(workbook);
+                            
+                            // DEBUG: Verificar días laborados encontrados
+                            const conDias = produccion.filter(p => p.dias_laborados !== null && p.dias_laborados > 0).length;
+                            const totalTecnicos = produccion.filter(p => p.nombre && p.nombre.trim() !== '').length;
+                            if (conDias > 0) {
+                                this.log(`  ✓ Encontrados días laborados: ${conDias}/${totalTecnicos} técnicos`, 'success');
+                            } else {
+                                this.log(`  ⚠️ No se encontraron días laborados en este mes`, 'info');
+                            }
+                            
+                            const monthData = this.combineData(actividades, produccion, month);
+
+                            this.processedData[month] = monthData;
+                            resolve();
+                        } catch (error) {
+                            reject(error);
+                        }
+                    };
+
+                    reader.onerror = () => reject(new Error('Error leyendo archivo'));
+                    reader.readAsArrayBuffer(file);
+                });
+            },
+
+            parseActividades(workbook) {
+                const sheet = workbook.Sheets['ACTIVIDADES'];
+                if (!sheet) return [];
+
+                const data = XLSX.utils.sheet_to_json(sheet, { raw: false, defval: '' });
+                
+                return data.map(row => {
+                    // Buscar técnico con todas las variaciones
+                    const tecnico = row['NOMBRE DEL TECNICO '] || 
+                                   row['NOMBRE DEL TECNICO'] || 
+                                   row['NOMBRE DEL TÉCNICO'] || 
+                                   row['NOMBRE TÉCNICO'] || 
+                                   row['NOMBRE TECNICO'] || 
+                                   '';
+                    
+                    // Buscar valor final con TODAS las variaciones posibles de columnas
+                    let valorFinal = 0;
+                    const columnasValor = [
+                        ' VALOR FINAL $ ',
+                        ' VALOR FINAL $',
+                        'VALOR FINAL $',
+                        'VALOR FINAL',
+                        ' TOTAL ACTIVIDAD-DESCUENTO ',
+                        'TOTAL ACTIVIDAD-DESCUENTO',
+                        ' % TECNICO-DESCUENTO ',
+                        '% TECNICO-DESCUENTO',
+                        ' VALOR TOTAL ',
+                        'VALOR TOTAL',
+                        '  VALOR TOTAL  ',
+                        'Total por actividad'
+                    ];
+                    
+                    for (const col of columnasValor) {
+                        if (row[col] !== undefined && row[col] !== null && row[col] !== '') {
+                            const valor = typeof row[col] === 'string' ? 
+                                row[col].replace(/[$,\s]/g, '') : row[col];
+                            const parsed = parseFloat(valor);
+                            if (!isNaN(parsed) && parsed > 0) {
+                                valorFinal = parsed;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    return {
+                        ciudad_sede: row['CIUDAD SEDE'] || '',
+                        coordinador: row['COORDINADOR'] || '',
+                        tarea: row['TA/CODIGO ACTIVIDAD'] || row['TA'] || '',
+                        actividad: row['ACTIVIDAD'] || '',
+                        tipo: row['TIPO DE ACTIVIDAD'] || row['TIPO DE APERTURA'] || row['SOLICITUD'] || '',
+                        departamento: row['DEPARTAMENTO'] || '',
+                        ciudad_punto: row['CIUDAD'] || '',
+                        nombre_punto: row['NOMBRE DEL CB'] || row['NOMBRE  DEL CB '] || row['NOMBRE PUNTO'] || '',
+                        tecnico: tecnico,
+                        valor_final: valorFinal,
+                        fecha_cierre: row['FECHA LISTA'] || row['FECHA ULTIMA ACTUALIZACION'] || row['FECHA ULTIMA ACTUALIZACIÓN'] || '',
+                        bodega: row['CENTRO DE COSTOS ACTIVIDAD'] || row['CENTRO DE COSTOS REAL'] || row['CENTRO DE COSTOS'] || '',
+                        tipificacion: row['TIPIFICACION'] || row['TIPIFICACIÓN'] || ''
+                    };
+                });
+            },
+
+            parseProduccion(workbook) {
+                const sheet = workbook.Sheets['PRODUCCIÓN BANCA Y SINERG'];
+                if (!sheet) return [];
+
+                const data = XLSX.utils.sheet_to_json(sheet, { raw: false, defval: '' });
+                
+                return data.map(row => {
+                    let produccionTotal = 0;
+                    const columnas = [' PRODUCCION TOTAL ', 'PRODUCCION TOTAL', ' PRODUCCIÓN TOTAL ', 'PRODUCCIÓN TOTAL'];
+                    
+                    for (const col of columnas) {
+                        if (row[col]) {
+                            const valor = typeof row[col] === 'string' ? row[col].replace(/[$,\s]/g, '') : row[col];
+                            const parsed = parseFloat(valor);
+                            if (!isNaN(parsed) && parsed > 0) {
+                                produccionTotal = parsed;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // Buscar días laborados - MÉTODO MEJORADO
+                    let diasLaborados = null;
+                    
+                    // Primero intentar búsqueda exacta con las variaciones más comunes
+                    const columnasExactas = [
+                        ' DIAS LABORADOS ',
+                        'DIAS LABORADOS',
+                        ' DÍAS LABORADOS ',
+                        'DÍAS LABORADOS',
+                        ' DIAS LABORADOS',
+                        'DIAS LABORADOS ',
+                        ' DÍAS LABORADOS',
+                        'DÍAS LABORADOS ',
+                        '  DIAS LABORADOS  ',
+                        '  DÍAS LABORADOS  '
+                    ];
+                    
+                    for (const col of columnasExactas) {
+                        if (row[col] !== undefined && row[col] !== null && row[col] !== '') {
+                            const valor = typeof row[col] === 'string' ? row[col].replace(/[^\d.]/g, '') : row[col];
+                            const parsed = parseFloat(valor);
+                            if (!isNaN(parsed) && parsed > 0) {
+                                diasLaborados = Math.round(parsed);
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // Si no se encontró, buscar por similitud en todas las claves
+                    if (diasLaborados === null) {
+                        const allKeys = Object.keys(row);
+                        for (const key of allKeys) {
+                            const normalizedKey = key.toUpperCase().replace(/\s+/g, ' ').trim();
+                            if (normalizedKey.includes('DIAS') && normalizedKey.includes('LABORADOS') ||
+                                normalizedKey.includes('DÍAS') && normalizedKey.includes('LABORADOS') ||
+                                normalizedKey.includes('DIAS') && normalizedKey.includes('TRABAJADOS') ||
+                                normalizedKey.includes('DÍAS') && normalizedKey.includes('TRABAJADOS')) {
+                                if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
+                                    const valor = typeof row[key] === 'string' ? row[key].replace(/[^\d.]/g, '') : row[key];
+                                    const parsed = parseFloat(valor);
+                                    if (!isNaN(parsed) && parsed > 0) {
+                                        diasLaborados = Math.round(parsed);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    return {
+                        nombre: row['NOMBRE'] || '',
+                        produccion_total: produccionTotal,
+                        meta: parseFloat(row[' META FINAL '] || row['META FINAL'] || row[' META '] || row['META'] || 0),
+                        cumplimiento: parseFloat(row[' % CUMPLIMIENTO '] || row['% CUMPLIMIENTO'] || 0),
+                        dias_laborados: diasLaborados
+                    };
+                });
+            },
+
+            combineData(actividades, produccion, monthName) {
+                const techMap = new Map();
+
+                // Primero procesar producción
+                produccion.forEach(prod => {
+                    if (!prod.nombre || prod.nombre.trim() === '') return;
+                    
+                    const nombreNormalizado = prod.nombre.trim().toUpperCase().replace(/\s+/g, ' ');
+                    techMap.set(nombreNormalizado, {
+                        nombre: prod.nombre.trim(),
+                        total_neto: prod.produccion_total || 0,
+                        cantidad_tareas: 0,
+                        tareas: [],
+                        meta: prod.meta || 0,
+                        cumplimiento: prod.cumplimiento || 0,
+                        dias_laborados: prod.dias_laborados
+                    });
+                });
+
+                // Luego procesar actividades
+                actividades.forEach(act => {
+                    if (!act.tecnico || act.tecnico.trim() === '') return;
+                    
+                    const nombreNormalizado = act.tecnico.trim().toUpperCase().replace(/\s+/g, ' ');
+                    
+                    if (!techMap.has(nombreNormalizado)) {
+                        techMap.set(nombreNormalizado, {
+                            nombre: act.tecnico.trim(),
+                            total_neto: 0,
+                            cantidad_tareas: 0,
+                            tareas: [],
+                            meta: 0,
+                            cumplimiento: 0,
+                            dias_laborados: null
+                        });
+                    }
+
+                    const tech = techMap.get(nombreNormalizado);
+                    
+                    if (tech.total_neto === 0 && act.valor_final > 0) {
+                        tech.total_neto += act.valor_final;
+                    }
+                    
+                    const zona = this.mapearZona(act.bodega, act.departamento, act.ciudad_punto, act.ciudad_sede);
+                    
+                    tech.cantidad_tareas++;
+                    tech.tareas.push({
+                        tarea: act.tarea,
+                        tipo: act.tipo,
+                        nombre_punto: act.nombre_punto,
+                        ciudad: act.ciudad_punto,
+                        departamento: act.departamento,
+                        tipificacion: act.tipificacion,
+                        fecha_cierre: act.fecha_cierre,
+                        valor_neto: act.valor_final || 0,
+                        bodega: zona
+                    });
+                });
+
+                return Array.from(techMap.values());
+            },
+
+            mapearZona(bodega, departamento, ciudad, sede) {
+                const normalizarTexto = (texto) => {
+                    return texto.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                };
+
+                const textoCompleto = normalizarTexto(`${bodega} ${departamento} ${ciudad} ${sede}`);
+
+                const zonas = {
+                    'NOROCCIDENTE': ['ANTIOQUIA', 'MEDELLIN', 'NOROCCIDENTE'],
+                    'SUROCCIDENTE Y EJE CAFETERO': ['VALLE', 'CALI', 'RISARALDA', 'PEREIRA', 'QUINDIO', 'ARMENIA', 'CALDAS', 'MANIZALES', 'SUROCCIDENTE'],
+                    'CUNDINAMARCA': ['BOGOTA', 'CUNDINAMARCA', 'SOACHA'],
+                    'COSTA': ['ATLANTICO', 'BARRANQUILLA', 'CARTAGENA', 'BOLIVAR', 'MAGDALENA', 'SANTA MARTA', 'COSTA', 'CESAR', 'GUAJIRA'],
+                    'SANTANDERES': ['SANTANDER', 'BUCARAMANGA', 'NORTE DE SANTANDER', 'CUCUTA', 'SANTANDERES'],
+                    'REMOTAS': ['TOLIMA', 'IBAGUE', 'HUILA', 'NEIVA', 'META', 'VILLAVICENCIO', 'NARIÑO', 'PASTO', 'REMOTAS']
+                };
+
+                for (const [zona, keywords] of Object.entries(zonas)) {
+                    if (keywords.some(k => textoCompleto.includes(normalizarTexto(k)))) {
+                        return zona;
+                    }
+                }
+
+                return departamento && departamento.trim() !== '' ? 'REMOTAS' : 'SIN ZONA';
+            },
+
+            generateJSON() {
+                const output = {
+                    version: '1.0',
+                    fecha_generacion: new Date().toISOString(),
+                    meses: this.processedData
+                };
+
+                const jsonStr = JSON.stringify(output, null, 2);
+                const blob = new Blob([jsonStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'meses_2025.json';
+                a.click();
+
+                URL.revokeObjectURL(url);
+
+                const sizeKB = (blob.size / 1024).toFixed(2);
+                this.log(`✓ Archivo generado: meses_2025.json (${sizeKB} KB)`, 'success');
+                this.log('🎉 ¡Conversión completada! Descarga iniciada.', 'success');
+                this.log('📁 Coloca el archivo en la carpeta data/ de tu aplicación', 'info');
+            },
+
+            log(message, type = 'info') {
+                const log = document.getElementById('log');
+                const line = document.createElement('div');
+                line.className = `log-line log-${type}`;
+                line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+                log.appendChild(line);
+                log.scrollTop = log.scrollHeight;
+            }
+        };
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', () => {
+            converter.init();
+        });
+    </script>
+</body>
+</html>

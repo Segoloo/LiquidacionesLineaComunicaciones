@@ -12,18 +12,40 @@ class LiquidacionesApp {
         
         // Topes de comisión
         this.COMMISSION_TIERS = [
-            { min: 0, max: 1000000, percentage: 0.15, name: '1', color: 'bronze' },
-            { min: 1000001, max: 2000000, percentage: 0.08, name: '2', color: 'silver' },
-            { min: 2000001, max: 3000000, percentage: 0.05, name: '3', color: 'gold' },
-            { min: 3000001, max: Infinity, percentage: 0.03, name: '4', color: 'platinum' }
+            { min: 0, max: 1000000, percentage: 0.15, name: 'Uno', color: 'bronze' },
+            { min: 1000001, max: 2000000, percentage: 0.08, name: 'Dos', color: 'silver' },
+            { min: 2000001, max: 3000000, percentage: 0.05, name: 'Tres', color: 'gold' },
+            { min: 3000001, max: Infinity, percentage: 0.03, name: 'Cuatro', color: 'platinum' }
         ];
+        
+        // NUEVO: Usar JSON para meses 2025 (mucho más rápido)
+        this.useJsonFor2025 = true; // Cambiar a false para volver a Excel
+        this.json2025Path = 'data/meses_2025.json';
+        
+        // Configuración de archivos Excel (Jun-Dic 2025) - solo como fallback
+        this.excelMonths = {
+            'June 2025': 'JUNIO.xlsx',
+            'July 2025': 'JULIO.xlsx',
+            'August 2025': 'AGOSTO.xlsx',
+            'September 2025': 'SEPTIEMBRE.xlsx',
+            'October 2025': 'OCTUBRE.xlsx',
+            'November 2025': 'NOVIEMBRE.xlsx',
+            'December 2025': 'DICIEMBRE.xlsx'
+        };
+        
+        this.excelData = {}; // Cache para datos de Excel ya procesados
+        this.excelLoadingPromises = {}; // Promesas de carga en proceso
+        this.data2025 = null; // Cache para JSON de 2025
         
         this.init();
     }
 
-    calculateCommission(totalRecaudado) {
+    calculateCommission(totalRecaudado, metaProporcional = null) {
+        // Usar meta proporcional si se proporciona, sino usar meta mensual base
+        const metaActual = metaProporcional !== null ? metaProporcional : this.META_MENSUAL;
+        
         // Si no alcanza la meta mínima, comisión es 0
-        if (totalRecaudado < this.META_MENSUAL) {
+        if (totalRecaudado < metaActual) {
             return {
                 commission: 0,
                 tier: { name: 'Ninguno', color: 'none', percentage: 0 },
@@ -32,7 +54,7 @@ class LiquidacionesApp {
             };
         }
 
-        const excedente = totalRecaudado - this.META_MENSUAL;
+        const excedente = totalRecaudado - metaActual;
         let commission = 0;
         let currentTier = null;
 
@@ -59,11 +81,21 @@ class LiquidacionesApp {
         try {
             this.showLoading('Conectando al servidor...');
             await this.loadData();
+            
+            // Cargar datos de 2025 (JSON o Excel según configuración)
+            this.showLoading('Cargando datos de 2025...');
+            if (this.useJsonFor2025) {
+                await this.load2025FromJson();
+            } else {
+                await this.preloadAllMonths();
+            }
+            
             this.hideLoading();
             this.setupEventListeners();
             this.renderRegionFilter();
             this.renderMonthFilter();
             this.renderRanking();
+
         } catch (error) {
             this.handleError(error);
         }
@@ -173,6 +205,485 @@ class LiquidacionesApp {
         } catch (error) {
             console.warn('Caché no disponible');
         }
+    }
+
+    async preloadAllMonths() {
+        const monthNames = Object.keys(this.excelMonths);
+        console.log(`Precargando ${monthNames.length} meses...`);
+        
+        let loadedCount = 0;
+        const totalCount = monthNames.length;
+        
+        // Cargar todos los meses en paralelo (más rápido que secuencial)
+        const loadPromises = monthNames.map(async (monthName) => {
+            try {
+                await this.loadExcelMonth(monthName);
+                loadedCount++;
+                this.showLoading(`Cargando meses... (${loadedCount}/${totalCount})`);
+            } catch (error) {
+                console.error(`Error cargando ${monthName}:`, error);
+            }
+        });
+        
+        await Promise.all(loadPromises);
+        console.log('✓ Todos los meses precargados exitosamente');
+    }
+
+    async load2025FromJson() {
+        try {
+            console.log('📦 Cargando datos de 2025 desde JSON...');
+            
+            const response = await fetch(this.json2025Path);
+            if (!response.ok) {
+                console.warn('JSON de 2025 no encontrado, usando Excel como fallback');
+                await this.preloadAllMonths();
+                return;
+            }
+
+            const jsonData = await response.json();
+            this.data2025 = jsonData;
+
+            console.log(`✓ JSON de 2025 cargado (${Object.keys(jsonData.meses).length} meses)`);
+
+            // Integrar cada mes del JSON
+            for (const [monthName, techData] of Object.entries(jsonData.meses)) {
+                console.log(`Integrando ${monthName} desde JSON...`);
+                this.integrateExcelData(monthName, techData);
+            }
+
+            console.log('✓ Todos los meses de 2025 integrados desde JSON');
+        } catch (error) {
+            console.error('Error cargando JSON de 2025:', error);
+            console.warn('Usando Excel como fallback');
+            await this.preloadAllMonths();
+        }
+    }
+
+    async loadExcelMonth(monthName) {
+        // Si ya está cargado, retornar del cache
+        if (this.excelData[monthName]) {
+            console.log(`✓ ${monthName} cargado desde caché`);
+            return this.excelData[monthName];
+        }
+
+        // Si ya se está cargando, esperar la promesa existente
+        if (this.excelLoadingPromises[monthName]) {
+            return await this.excelLoadingPromises[monthName];
+        }
+
+        const fileName = this.excelMonths[monthName];
+        if (!fileName) {
+            return null;
+        }
+
+        // Crear promesa de carga
+        this.excelLoadingPromises[monthName] = (async () => {
+            try {
+                console.log(`Cargando ${monthName}...`);
+                
+                const response = await fetch(`data/${fileName}`);
+                if (!response.ok) {
+                    console.warn(`No se pudo cargar ${fileName}`);
+                    return null;
+                }
+
+                const arrayBuffer = await response.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
+
+                // Extraer datos de las hojas
+                const actividades = this.parseActividades(workbook);
+                const produccion = this.parseProduccion(workbook);
+
+                // Combinar datos
+                const monthData = this.combineExcelData(actividades, produccion, monthName);
+                
+                // Cachear datos
+                this.excelData[monthName] = monthData;
+                
+                // IMPORTANTE: Integrar datos inmediatamente al cargar
+                this.integrateExcelData(monthName, monthData);
+                
+                console.log(`✓ ${monthName} cargado: ${monthData.length} técnicos`);
+                
+                return monthData;
+            } catch (error) {
+                console.error(`Error cargando ${monthName}:`, error);
+                return null;
+            } finally {
+                delete this.excelLoadingPromises[monthName];
+            }
+        })();
+
+        return await this.excelLoadingPromises[monthName];
+    }
+
+    parseActividades(workbook) {
+        const sheetName = 'ACTIVIDADES';
+        if (!workbook.Sheets[sheetName]) {
+            console.warn('Hoja ACTIVIDADES no encontrada');
+            return [];
+        }
+
+        const sheet = workbook.Sheets[sheetName];
+        const data = XLSX.utils.sheet_to_json(sheet, { raw: false, defval: '' });
+        
+        // DEBUG: Ver columnas disponibles
+        if (data.length > 0) {
+            const columnas = Object.keys(data[0]);
+            console.log(`Columnas disponibles (${columnas.length}):`, columnas);
+        }
+        
+        console.log(`Procesando ${data.length} filas de ACTIVIDADES`);
+        
+        const actividades = data.map(row => {
+            // Extraer técnico con todas las variaciones posibles (¡incluyendo espacios!)
+            const tecnico = row['NOMBRE DEL TECNICO '] ||  // ← CON ESPACIO AL FINAL
+                           row['NOMBRE DEL TECNICO'] || 
+                           row['NOMBRE DEL TÉCNICO'] || 
+                           row['NOMBRE TÉCNICO'] || 
+                           row['NOMBRE TECNICO'] || 
+                           '';
+            
+            // Extraer valor final con TODAS las variaciones posibles
+            let valorFinal = 0;
+            const columnasValor = [
+                ' VALOR FINAL $ ',
+                ' VALOR FINAL $',
+                'VALOR FINAL $',
+                'VALOR FINAL',
+                ' TOTAL ACTIVIDAD-DESCUENTO ',
+                'TOTAL ACTIVIDAD-DESCUENTO',
+                ' % TECNICO-DESCUENTO ',
+                '% TECNICO-DESCUENTO',
+                ' VALOR TOTAL ',
+                'VALOR TOTAL',
+                '  VALOR TOTAL  ',
+                'Total por actividad'
+            ];
+            
+            for (const col of columnasValor) {
+                if (row[col] !== undefined && row[col] !== null && row[col] !== '') {
+                    const valor = typeof row[col] === 'string' ? 
+                        row[col].replace(/[$,\s]/g, '') : row[col];
+                    const parsed = parseFloat(valor);
+                    if (!isNaN(parsed) && parsed > 0) {
+                        valorFinal = parsed;
+                        break;
+                    }
+                }
+            }
+            
+            return {
+                ciudad_sede: row['CIUDAD SEDE'] || '',
+                coordinador: row['COORDINADOR'] || '',
+                tarea: row['TA/CODIGO ACTIVIDAD'] || row['TA'] || '',
+                actividad: row['ACTIVIDAD'] || '',
+                tipo: row['TIPO DE ACTIVIDAD'] || row['TIPO DE APERTURA'] || row['SOLICITUD'] || '',
+                departamento: row['DEPARTAMENTO'] || '',
+                ciudad_punto: row['CIUDAD'] || '', // Ciudad del punto de servicio
+                nombre_punto: row['NOMBRE DEL CB'] || row['NOMBRE  DEL CB '] || row['NOMBRE PUNTO'] || '',
+                red: row['RED'] || '',
+                fo: row['FO'] || '',
+                estado: row['ESTADO'] || '',
+                forma_atencion: row['FORMA DE ATENCIÓN'] || row['FORMA DE ATENCION'] || '',
+                terminales: row['TERMINALES'] || '',
+                tipificacion: row['TIPIFICACION'] || row['TIPIFICACIÓN'] || '',
+                trayecto: row['TIPO DE TRAYECTO'] || '',
+                tecnico: tecnico,
+                proyecto: row['PROYECTO ACTIVIDAD'] || row['PROYECTO'] || '',
+                valor_total: parseFloat(row[' VALOR TOTAL '] || row['  VALOR TOTAL  '] || row[' VALOR TOTAL  '] || row['Total por actividad'] || 0),
+                valor_final: valorFinal,
+                facturable: row[' FACTURABLE '] || row[' FACTURABLE'] || row['FACTURABLE'] || '',
+                fecha_cierre: row['FECHA LISTA'] || row['FECHA ULTIMA ACTUALIZACION'] || row['FECHA ULTIMA ACTUALIZACIÓN'] || '',
+                bodega: row['CENTRO DE COSTOS ACTIVIDAD'] || row['CENTRO DE COSTOS REAL'] || row['CENTRO DE COSTOS'] || ''
+            };
+        });
+        
+        // DEBUG: Ver cuántos técnicos válidos encontramos
+        const conTecnico = actividades.filter(a => a.tecnico && a.tecnico.trim() !== '');
+        console.log(`Actividades con técnico válido: ${conTecnico.length} de ${actividades.length}`);
+        
+        return actividades;
+    }
+
+    parseProduccion(workbook) {
+        const sheetName = 'PRODUCCIÓN BANCA Y SINERG';
+        if (!workbook.Sheets[sheetName]) {
+            console.warn('Hoja PRODUCCIÓN BANCA Y SINERG no encontrada');
+            return [];
+        }
+
+        const sheet = workbook.Sheets[sheetName];
+        const data = XLSX.utils.sheet_to_json(sheet, { raw: false, defval: '' });
+        
+        return data.map(row => {
+            // Extraer producción total con todas las variaciones posibles
+            let produccionTotal = 0;
+            const columnasProduccion = [
+                ' PRODUCCION TOTAL ',
+                'PRODUCCION TOTAL',
+                ' PRODUCCIÓN TOTAL ',
+                'PRODUCCIÓN TOTAL',
+                'PRODUCCION TOTAL '
+            ];
+            
+            for (const col of columnasProduccion) {
+                if (row[col] !== undefined && row[col] !== null && row[col] !== '') {
+                    const valor = typeof row[col] === 'string' ? 
+                        row[col].replace(/[$,\s]/g, '') : row[col];
+                    const parsed = parseFloat(valor);
+                    if (!isNaN(parsed) && parsed > 0) {
+                        produccionTotal = parsed;
+                        break;
+                    }
+                }
+            }
+            
+            return {
+                cc: row['CC'] || '',
+                nombre: row['NOMBRE'] || '',
+                produccion_total: produccionTotal,
+                meta: parseFloat(row[' META FINAL '] || row[' META FINAL'] || row[' META '] || row['META FINAL'] || row['META'] || 0),
+                cumplimiento: parseFloat(row[' % CUMPLIMIENTO '] || row[' % CUMPLIMIENTO'] || row['% CUMPLIMIENTO'] || 0)
+            };
+        });
+    }
+
+    combineExcelData(actividades, produccion, monthName) {
+        const techMap = new Map();
+
+        console.log(`${monthName}: Combinando ${produccion.length} registros de producción y ${actividades.length} actividades`);
+
+        // Primero procesar producción para obtener totales correctos DIRECTAMENTE del Excel
+        produccion.forEach(prod => {
+            if (!prod.nombre || prod.nombre.trim() === '') return;
+            
+            const nombreNormalizado = this.normalizarNombre(prod.nombre);
+            if (!techMap.has(nombreNormalizado)) {
+                techMap.set(nombreNormalizado, {
+                    nombre: prod.nombre.trim(),
+                    total_neto: prod.produccion_total || 0, // USAR VALOR DIRECTO DEL EXCEL
+                    cantidad_tareas: 0,
+                    tareas: [],
+                    meta: prod.meta || 0,
+                    cumplimiento: prod.cumplimiento || 0
+                });
+            } else {
+                // Si ya existe, actualizar con la producción del Excel
+                const tech = techMap.get(nombreNormalizado);
+                tech.total_neto = prod.produccion_total || 0;
+                tech.meta = prod.meta || 0;
+                tech.cumplimiento = prod.cumplimiento || 0;
+            }
+        });
+
+        // Contador para debug
+        let tareasConZona = 0;
+        let tareasSinZona = 0;
+        let tareasConTecnico = 0;
+        let tareasSinTecnico = 0;
+        const zonasCont = {};
+
+        // Luego procesar actividades SOLO para contar tareas y obtener detalles
+        actividades.forEach(act => {
+            if (!act.tecnico || act.tecnico.trim() === '') {
+                tareasSinTecnico++;
+                return;
+            }
+            
+            tareasConTecnico++;
+            const nombreNormalizado = this.normalizarNombre(act.tecnico);
+            
+            if (!techMap.has(nombreNormalizado)) {
+                // Si no existe en producción, crear con datos de actividades
+                techMap.set(nombreNormalizado, {
+                    nombre: act.tecnico.trim(),
+                    total_neto: act.valor_final || 0,
+                    cantidad_tareas: 0,
+                    tareas: [],
+                    meta: 0,
+                    cumplimiento: 0
+                });
+            }
+
+            const tech = techMap.get(nombreNormalizado);
+            
+            // Si NO hay producción_total del Excel, sumar valores de actividades
+            if (tech.total_neto === 0 && act.valor_final > 0) {
+                tech.total_neto += act.valor_final;
+            }
+            
+            // Mapear bodega a zona
+            const zona = this.mapearBodegaAZona(act.bodega, act.departamento, act.ciudad_punto, act.ciudad_sede);
+            
+            // Contador de zonas
+            if (!zonasCont[zona]) {
+                zonasCont[zona] = 0;
+            }
+            zonasCont[zona]++;
+            
+            if (zona !== 'SIN ZONA') {
+                tareasConZona++;
+            } else {
+                tareasSinZona++;
+                // Log de las tareas sin zona para debugging
+                if (tareasSinZona <= 5) {
+                    console.log(`Tarea SIN ZONA: bodega="${act.bodega}", depto="${act.departamento}", ciudad="${act.ciudad_punto}", sede="${act.ciudad_sede}"`);
+                }
+            }
+            
+            tech.cantidad_tareas++;
+            tech.tareas.push({
+                tarea: act.tarea,
+                tipo: act.tipo,
+                tipo_actividad: act.tipo,
+                tipo_origen: act.tipo,
+                nombre_punto: act.nombre_punto,
+                ciudad: act.ciudad_punto,
+                departamento: act.departamento,
+                tipificacion: act.tipificacion,
+                fecha_cierre: act.fecha_cierre,
+                fecha_resolucion: act.fecha_cierre,
+                valor_neto: act.valor_final || 0,
+                bodega: zona  // Ya viene mapeada a zona
+            });
+        });
+
+        console.log(`${monthName}: ${tareasConTecnico} con técnico, ${tareasSinTecnico} sin técnico`);
+        console.log(`${monthName}: ${tareasConZona} tareas con zona, ${tareasSinZona} sin zona`);
+        console.log(`${monthName}: Distribución de zonas:`, zonasCont);
+
+        return Array.from(techMap.values());
+    }
+
+    mapearBodegaAZona(bodega, departamento, ciudad, ciudad_punto) {
+        // Mapeo de zonas según el centro de costos o ubicación geográfica
+        // Expandido con más ciudades y variaciones
+        const zonasPorPalabras = {
+            'NOROCCIDENTE': ['ANTIOQUIA', 'MEDELLIN', 'MEDELLÍN', 'ENVIGADO', 'BELLO', 'ITAGUI', 'ITAGUÍ', 'SABANETA', 'LA ESTRELLA', 'CALDAS', 'COPACABANA', 'GIRARDOTA', 'BARBOSA', 'RIONEGRO', 'APARTADO', 'URABA', 'URABÁ', 'TURBO', 'NOROCCIDENTE'],
+            'SUROCCIDENTE Y EJE CAFETERO': ['VALLE DEL CAUCA', 'VALLE', 'CALI', 'PALMIRA', 'BUENAVENTURA', 'TULUA', 'TULUÁ', 'BUGA', 'CARTAGO', 'YUMBO', 'JAMUNDI', 'JAMUNDÍ', 'RISARALDA', 'PEREIRA', 'DOSQUEBRADAS', 'QUINDIO', 'QUINDÍO', 'ARMENIA', 'CALARCA', 'CALARCÁ', 'CALDAS', 'MANIZALES', 'VILLAMARIA', 'VILLAMARÍA', 'CHINCHINA', 'CHINCHINÁ', 'SUROCCIDENTE', 'EJE CAFETERO'],
+            'CUNDINAMARCA': ['BOGOTA', 'BOGOTÁ', 'BOGOTA D.C', 'BOGOTA D.C.', 'CUNDINAMARCA', 'SOACHA', 'CHIA', 'CHÍA', 'CAJICA', 'CAJICÁ', 'ZIPAQUIRA', 'ZIPAQUIRÁ', 'FACATATIVA', 'FUNZA', 'MADRID', 'MOSQUERA', 'FUSAGASUGA', 'FUSAGASUGÁ', 'GIRARDOT', 'SIBATE', 'SIBATÉ'],
+            'COSTA': ['ATLANTICO', 'ATLÁNTICO', 'BARRANQUILLA', 'SOLEDAD', 'MALAMBO', 'PUERTO COLOMBIA', 'CARTAGENA', 'BOLIVAR', 'BOLÍVAR', 'TURBACO', 'ARJONA', 'MAGDALENA', 'SANTA MARTA', 'CIENAGA', 'CIÉNAGA', 'SINCELEJO', 'SUCRE', 'COROZAL', 'MONTERIA', 'MONTERÍA', 'CORDOBA', 'CÓRDOBA', 'LORICA', 'SAHAGÚN', 'COSTA', 'VALLEDUPAR', 'CESAR', 'AGUACHICA', 'LA GUAJIRA', 'GUAJIRA', 'RIOHACHA', 'MAICAO'],
+            'SANTANDERES': ['SANTANDER', 'BUCARAMANGA', 'FLORIDABLANCA', 'GIRON', 'GIRÓN', 'PIEDECUESTA', 'BARRANCABERMEJA', 'SAN GIL', 'SOCORRO', 'MALAGA', 'MÁLAGA', 'NORTE DE SANTANDER', 'CUCUTA', 'CÚCUTA', 'VILLA DEL ROSARIO', 'LOS PATIOS', 'PAMPLONA', 'OCAÑA', 'SANTANDERES'],
+            'REMOTAS': ['TOLIMA', 'IBAGUE', 'IBAGUÉ', 'ESPINAL', 'MELGAR', 'HONDA', 'HUILA', 'NEIVA', 'PITALITO', 'GARZON', 'GARZÓN', 'LA PLATA', 'META', 'VILLAVICENCIO', 'ACACIAS', 'GRANADA', 'PUERTO LOPEZ', 'PUERTO LÓPEZ', 'CASANARE', 'YOPAL', 'AGUAZUL', 'ARAUCA', 'SARAVENA', 'BOYACA', 'BOYACÁ', 'TUNJA', 'DUITAMA', 'SOGAMOSO', 'CHIQUINQUIRA', 'CHIQUINQUIRÁ', 'PAIPA', 'NARIÑO', 'PASTO', 'IPIALES', 'TUMACO', 'CAUCA', 'POPAYAN', 'POPAYÁN', 'SANTANDER DE QUILICHAO', 'PUTUMAYO', 'MOCOA', 'PUERTO ASIS', 'PUERTO ASÍS', 'CAQUETA', 'CAQUETÁ', 'FLORENCIA', 'SAN VICENTE DEL CAGUAN', 'SAN VICENTE DEL CAGUÁN', 'AMAZONAS', 'LETICIA', 'REMOTAS', 'GUAVIARE', 'SAN JOSE DEL GUAVIARE', 'SAN JOSÉ DEL GUAVIARE', 'VICHADA', 'PUERTO CARREÑO', 'GUAINIA', 'GUAINÍA', 'VAUPES', 'VAUPÉS']
+        };
+
+        // Normalizar el texto para búsqueda (sin tildes y mayúsculas)
+        const normalizarTexto = (texto) => {
+            return texto
+                .toUpperCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, ""); // Eliminar tildes
+        };
+
+        const textoCompleto = normalizarTexto(`${bodega} ${departamento} ${ciudad} ${ciudad_punto}`);
+
+        // Buscar coincidencia en todas las zonas
+        for (const [zona, keywords] of Object.entries(zonasPorPalabras)) {
+            if (keywords.some(keyword => textoCompleto.includes(normalizarTexto(keyword)))) {
+                return zona;
+            }
+        }
+
+        // Si no se encuentra zona, intentar mapeo por departamento directo
+        const departamentoNormalizado = normalizarTexto(departamento);
+        if (departamentoNormalizado.includes('ANTIOQUIA')) return 'NOROCCIDENTE';
+        if (departamentoNormalizado.includes('VALLE')) return 'SUROCCIDENTE Y EJE CAFETERO';
+        if (departamentoNormalizado.includes('RISARALDA')) return 'SUROCCIDENTE Y EJE CAFETERO';
+        if (departamentoNormalizado.includes('QUINDIO')) return 'SUROCCIDENTE Y EJE CAFETERO';
+        if (departamentoNormalizado.includes('CALDAS')) return 'SUROCCIDENTE Y EJE CAFETERO';
+        if (departamentoNormalizado.includes('CUNDINAMARCA')) return 'CUNDINAMARCA';
+        if (departamentoNormalizado.includes('ATLANTICO')) return 'COSTA';
+        if (departamentoNormalizado.includes('BOLIVAR')) return 'COSTA';
+        if (departamentoNormalizado.includes('MAGDALENA')) return 'COSTA';
+        if (departamentoNormalizado.includes('CORDOBA')) return 'COSTA';
+        if (departamentoNormalizado.includes('SUCRE')) return 'COSTA';
+        if (departamentoNormalizado.includes('CESAR')) return 'COSTA';
+        if (departamentoNormalizado.includes('GUAJIRA')) return 'COSTA';
+        if (departamentoNormalizado.includes('SANTANDER')) return 'SANTANDERES';
+        
+        // Cualquier otro departamento va a REMOTAS
+        if (departamento && departamento.trim() !== '') return 'REMOTAS';
+
+        return 'SIN ZONA';
+    }
+
+    normalizarNombre(nombre) {
+        return nombre.trim().toUpperCase().replace(/\s+/g, ' ');
+    }
+
+    async ensureMonthData(monthName) {
+        // Si es un mes de Excel (Jun-Dic 2025)
+        if (this.excelMonths[monthName]) {
+            // Si no está cargado, cargarlo ahora
+            if (!this.excelData[monthName]) {
+                await this.loadExcelMonth(monthName);
+            }
+            // Los datos ya fueron integrados automáticamente en loadExcelMonth
+        }
+    }
+
+    integrateExcelData(monthName, excelData) {
+        let nuevos = 0;
+        let actualizados = 0;
+        let sinCambios = 0;
+        
+        excelData.forEach(techData => {
+            const nombreNormalizado = this.normalizarNombre(techData.nombre);
+            
+            // Buscar técnico existente
+            let tech = this.technicians.find(t => 
+                this.normalizarNombre(t.nombre) === nombreNormalizado
+            );
+
+            // Si no existe, crearlo
+            if (!tech) {
+                tech = {
+                    nombre: techData.nombre,
+                    meses: []
+                };
+                this.technicians.push(tech);
+                nuevos++;
+            }
+
+            // Verificar si ya existe el mes
+            let mesIndex = tech.meses.findIndex(m => m.mes === monthName);
+            
+            // Crear objeto del mes
+            const nuevoMesData = {
+                mes: monthName,
+                total_neto: techData.total_neto,
+                cantidad_tareas: techData.cantidad_tareas,
+                tareas: techData.tareas,
+                meta: techData.meta || 0,
+                cumplimiento: techData.cumplimiento || 0,
+                dias_laborados: techData.dias_laborados !== undefined ? techData.dias_laborados : null
+            };
+            
+            if (mesIndex === -1) {
+                // Agregar nuevo mes (NO EXISTE)
+                tech.meses.push(nuevoMesData);
+                actualizados++;
+            } else {
+                // El mes YA EXISTE - comparar si hay cambios reales
+                const mesExistente = tech.meses[mesIndex];
+                
+                // Solo actualizar si los valores son significativamente diferentes
+                // o si el mes existente no tiene datos
+                if (!mesExistente.tareas || 
+                    mesExistente.tareas.length === 0 ||
+                    Math.abs(mesExistente.total_neto - techData.total_neto) > 100 ||
+                    mesExistente.cantidad_tareas !== techData.cantidad_tareas) {
+                    
+                    tech.meses[mesIndex] = nuevoMesData;
+                    actualizados++;
+                } else {
+                    sinCambios++;
+                }
+            }
+        });
+        
+        console.log(`${monthName} integrado: ${nuevos} técnicos nuevos, ${actualizados} meses agregados/actualizados, ${sinCambios} sin cambios`);
     }
 
     setupEventListeners() {
@@ -301,7 +812,7 @@ class LiquidacionesApp {
         suggestionsDiv.classList.remove('hidden');
     }
 
-    selectTechnician(name) {
+    async selectTechnician(name) {
         const tech = this.technicians.find(t => t.nombre === name);
         
         if (!tech) {
@@ -311,6 +822,15 @@ class LiquidacionesApp {
 
         this.currentTechnician = tech;
         document.getElementById('suggestions').classList.add('hidden');
+        
+        // Cargar datos de Excel para todos los meses de 2025 si es necesario
+        const excelMonthKeys = Object.keys(this.excelMonths);
+        for (const monthKey of excelMonthKeys) {
+            const hasMonth = tech.meses.find(m => m.mes === monthKey);
+            if (!hasMonth || !hasMonth.tareas || hasMonth.tareas.length === 0) {
+                await this.ensureMonthData(monthKey);
+            }
+        }
         
         this.openModal(tech);
     }
@@ -337,6 +857,10 @@ class LiquidacionesApp {
         const modal = document.getElementById('techModal');
         const detailsDiv = document.getElementById('techDetails');
 
+        // DEBUG: Ver qué meses tiene disponible este técnico
+        console.log(`Abriendo modal para: ${tech.nombre}`);
+        console.log(`Meses disponibles (${tech.meses.length}):`, tech.meses.map(m => `${m.mes} (${m.cantidad_tareas} tareas, $${m.total_neto})`));
+
         const avatar = tech.nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
         
         // Obtener el mes actual real (febrero 2026)
@@ -344,15 +868,42 @@ class LiquidacionesApp {
         // Los meses en los datos están en formato "February 2026", no "2026-02"
         const mesActualString = hoy.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
         
+        console.log(`Buscando mes actual: ${mesActualString}`);
+        
         // Buscar específicamente el mes actual en los datos del técnico
         const mesActual = tech.meses.find(m => m.mes === mesActualString);
+        
+        if (mesActual) {
+            console.log(`✓ Encontrado mes actual con ${mesActual.cantidad_tareas} tareas y $${mesActual.total_neto}`);
+        } else {
+            console.log(`✗ NO encontrado mes actual. Meses disponibles: ${tech.meses.map(m => m.mes).join(', ')}`);
+        }
         
         // Asegurarse de que los valores sean números, no undefined o null
         const netoMesActual = mesActual && typeof mesActual.total_neto === 'number' ? mesActual.total_neto : 0;
         const tareasMesActual = mesActual && typeof mesActual.cantidad_tareas === 'number' ? mesActual.cantidad_tareas : 0;
+        const diasLaboradosMesActual = mesActual && mesActual.dias_laborados !== undefined && mesActual.dias_laborados !== null ? mesActual.dias_laborados : null;
         
-        // Calcular porcentaje del mes actual
-        const percentageMesActual = this.calculatePercentage(netoMesActual);
+        // Calcular meta proporcional
+        let metaProporcional = this.META_MENSUAL;
+        let diasInfo = '';
+        
+        if (diasLaboradosMesActual !== null && diasLaboradosMesActual > 0) {
+            metaProporcional = this.META_MENSUAL - (this.META_MENSUAL / 30) * (30 - diasLaboradosMesActual);
+            metaProporcional = Math.round(metaProporcional);
+            diasInfo = `${diasLaboradosMesActual} días`;
+        } else {
+            // Para 2026 o cuando no hay datos
+            const esFebrero2026 = mesActualString === 'February 2026';
+            if (esFebrero2026) {
+                diasInfo = '(esperando data)';
+            } else {
+                diasInfo = 'No disponible';
+            }
+        }
+        
+        // Calcular porcentaje del mes actual usando meta proporcional
+        const percentageMesActual = metaProporcional > 0 ? ((netoMesActual / metaProporcional) * 100).toFixed(1) : 0;
         const percentageColorMesActual = this.getPercentageColor(percentageMesActual);
         const percentageStatusMesActual = this.getPercentageStatus(percentageMesActual);
 
@@ -374,11 +925,19 @@ class LiquidacionesApp {
                     <div class="summary-label">NETO RECAUDADO</div>
                     <div class="summary-value">${this.formatCurrency(netoMesActual)}</div>
                 </div>
-                <div class="summary-stat" style="grid-column: 1 / -1;">
-                    <div class="summary-label">META MENSUAL</div>
-                    <div class="summary-value" style="color: var(--accent); font-size: 1.5rem;">
-                        ${this.formatCurrency(this.META_MENSUAL)}
+                <div class="summary-stat">
+                    <div class="summary-label">DÍAS LABORADOS</div>
+                    <div class="summary-value" style="font-size: 1.25rem;">${diasInfo}</div>
+                </div>
+                <div class="summary-stat">
+                    <div class="summary-label">META PROPORCIONAL</div>
+                    <div class="summary-value" style="color: var(--accent); font-size: 1.25rem;">
+                        ${this.formatCurrency(metaProporcional)}
                     </div>
+                    ${diasLaboradosMesActual !== null && diasLaboradosMesActual > 0 ? 
+                        `<div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+                            (${30 - diasLaboradosMesActual} días no laborados)
+                        </div>` : ''}
                 </div>
                 <div class="summary-stat" style="grid-column: 1 / -1;">
                     <div class="summary-label">% CUMPLIMIENTO</div>
@@ -394,7 +953,7 @@ class LiquidacionesApp {
                 </div>
             </div>
 
-            ${this.renderCommissionSection(netoMesActual)}
+            ${this.renderCommissionSection(netoMesActual, metaProporcional)}
 
             <div class="current-month-download">
                 <div class="current-month-download-title">Descargar Reporte Mes Actual</div>
@@ -414,7 +973,28 @@ class LiquidacionesApp {
                             year: 'numeric' 
                         });
                         const monthId = 'month-' + mes.mes.replace(/[^a-zA-Z0-9]/g, '');
-                        const percentage = this.calculatePercentage(mes.total_neto);
+                        
+                        // Calcular días laborados y meta proporcional para este mes
+                        const diasLaboradosMes = mes.dias_laborados !== undefined && mes.dias_laborados !== null ? mes.dias_laborados : null;
+                        let metaProporcionalMes = this.META_MENSUAL;
+                        let diasInfoMes = '';
+                        
+                        if (diasLaboradosMes !== null && diasLaboradosMes > 0) {
+                            metaProporcionalMes = this.META_MENSUAL - (this.META_MENSUAL / 30) * (30 - diasLaboradosMes);
+                            metaProporcionalMes = Math.round(metaProporcionalMes);
+                            diasInfoMes = `${diasLaboradosMes} días`;
+                        } else {
+                            // Verificar si es un mes de 2026
+                            const mesDate = new Date(mes.mes + '-01');
+                            const es2026 = mesDate.getFullYear() === 2026;
+                            if (es2026) {
+                                diasInfoMes = '(esperando data)';
+                            } else {
+                                diasInfoMes = 'No disponible';
+                            }
+                        }
+                        
+                        const percentage = metaProporcionalMes > 0 ? ((mes.total_neto / metaProporcionalMes) * 100).toFixed(1) : 0;
                         const percentageColor = this.getPercentageColor(percentage);
                         const percentageStatus = this.getPercentageStatus(percentage);
                         
@@ -435,8 +1015,16 @@ class LiquidacionesApp {
                                     <div class="month-stats-container">
                                         <div class="month-stats-grid">
                                             <div class="month-stat-card">
-                                                <div class="month-stat-label">Meta Mensual</div>
-                                                <div class="month-stat-value">${this.formatCurrency(this.META_MENSUAL)}</div>
+                                                <div class="month-stat-label">Días Laborados</div>
+                                                <div class="month-stat-value" style="font-size: 1.25rem;">${diasInfoMes}</div>
+                                            </div>
+                                            <div class="month-stat-card">
+                                                <div class="month-stat-label">Meta Proporcional</div>
+                                                <div class="month-stat-value">${this.formatCurrency(metaProporcionalMes)}</div>
+                                                ${diasLaboradosMes !== null && diasLaboradosMes > 0 ? 
+                                                    `<div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.25rem;">
+                                                        (${30 - diasLaboradosMes} días no laborados)
+                                                    </div>` : ''}
                                             </div>
                                             <div class="month-stat-card">
                                                 <div class="month-stat-label">Recaudado</div>
@@ -457,7 +1045,7 @@ class LiquidacionesApp {
                                         </div>
                                     </div>
                                     
-                                    ${this.renderCommissionSection(mes.total_neto)}
+                                    ${this.renderCommissionSection(mes.total_neto, metaProporcionalMes)}
                                     
                                     ${mes.tareas && mes.tareas.length > 0 ? `
                                         <div class="tasks-section">
@@ -502,8 +1090,10 @@ class LiquidacionesApp {
         document.body.style.overflow = 'hidden';
     }
 
-    renderCommissionSection(totalRecaudado) {
-        const commissionData = this.calculateCommission(totalRecaudado);
+    renderCommissionSection(totalRecaudado, metaProporcional = null) {
+        // Si no se proporciona meta proporcional, usar la meta mensual estándar
+        const metaActual = metaProporcional !== null ? metaProporcional : this.META_MENSUAL;
+        const commissionData = this.calculateCommission(totalRecaudado, metaActual);
         const { commission, tier, excedente, metCumplida } = commissionData;
 
         return `
@@ -536,9 +1126,9 @@ class LiquidacionesApp {
                     </div>
                     <div class="commission-detail-row">
                         <div class="commission-detail-label">
-                            <span>🎯</span> Meta Mensual
+                            <span>🎯</span> Meta ${metaProporcional !== null ? 'Proporcional' : 'Mensual'}
                         </div>
-                        <div class="commission-detail-value">${this.formatCurrency(this.META_MENSUAL)}</div>
+                        <div class="commission-detail-value">${this.formatCurrency(metaActual)}</div>
                     </div>
                     <div class="commission-detail-row">
                         <div class="commission-detail-label">
@@ -623,6 +1213,12 @@ class LiquidacionesApp {
     getRecentMonths() {
         const monthsSet = new Set();
         
+        // Agregar meses de Excel disponibles
+        Object.keys(this.excelMonths).forEach(month => {
+            monthsSet.add(month);
+        });
+        
+        // Agregar meses de JSON
         this.technicians.forEach(tech => {
             tech.meses.forEach(mes => {
                 monthsSet.add(mes.mes);
@@ -630,18 +1226,39 @@ class LiquidacionesApp {
         });
 
         const months = Array.from(monthsSet)
-            .sort((a, b) => new Date(b) - new Date(a))
-            .slice(0, 6);
+            .map(monthStr => {
+                try {
+                    // Intentar parsear como fecha
+                    const date = new Date(monthStr);
+                    if (isNaN(date.getTime())) {
+                        return null;
+                    }
+                    return { str: monthStr, date: date };
+                } catch {
+                    return null;
+                }
+            })
+            .filter(m => m !== null)
+            .sort((a, b) => b.date - a.date)
+            .slice(0, 12)
+            .map(m => m.str);
 
         return months.map(month => {
-            const date = new Date(month + '-01');
-            return {
-                value: month,
-                label: date.toLocaleDateString('es-CO', { 
-                    month: 'short', 
-                    year: 'numeric' 
-                }).replace('.', '')
-            };
+            try {
+                const date = new Date(month);
+                return {
+                    value: month,
+                    label: date.toLocaleDateString('es-CO', { 
+                        month: 'short', 
+                        year: 'numeric' 
+                    }).replace('.', '')
+                };
+            } catch {
+                return {
+                    value: month,
+                    label: month
+                };
+            }
         });
     }
 
@@ -676,19 +1293,16 @@ class LiquidacionesApp {
         `;
     }
 
-    changeMonth(month) {
+    async changeMonth(month) {
         this.selectedMonth = month;
+        
+        // Los datos ya fueron precargados al inicio, no recargar
+        
         this.renderMonthFilter();
         this.renderRanking();
     }
 
-    changeMonth(month) {
-        this.selectedMonth = month;
-        this.renderMonthFilter();
-        this.renderRanking();
-    }
-
-    renderRanking() {
+    async renderRanking() {
         const gridDiv = document.getElementById('rankingGrid');
         
         if (!this.selectedMonth) {
@@ -700,6 +1314,8 @@ class LiquidacionesApp {
             gridDiv.innerHTML = this.renderEmptyState();
             return;
         }
+
+        // Los datos ya fueron precargados, no es necesario cargar de nuevo
 
         let filteredTechs = this.technicians;
         
@@ -1105,7 +1721,7 @@ class LiquidacionesApp {
             doc.setDrawColor(...primaryColor);
             doc.setLineWidth(0.5);
             doc.roundedRect(15, yPos, pageWidth - 30, 35, 3, 3, 'S');
-            
+
             doc.setTextColor(...primaryColor);
             doc.setFontSize(18);
             doc.setFont(undefined, 'bold');
@@ -1133,6 +1749,7 @@ class LiquidacionesApp {
             const boxWidth = (pageWidth - 40) / 3;
             const boxHeight = 25;
             const startX = 15;
+
 
             // Box 1: Total Tareas
             doc.setFillColor(...bgCard);
@@ -1327,6 +1944,7 @@ class LiquidacionesApp {
         return [245, 101, 101]; // Rojo
     }
 
+
     handleError(error) {
         console.error('Error:', error);
         this.hideLoading();
@@ -1354,6 +1972,7 @@ let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new LiquidacionesApp();
 });
+
 // Mensaje de créditos en consola
 console.log('%c╔═══════════════════════════════════════════════════════════════════╗', 'color: #3B82F6; font-weight: bold;');
 console.log('%c║  Sistema de Producción - Linea Comunicaciones                    ║', 'color: #3B82F6; font-weight: bold;');
